@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Prototipo de referencia (React UMD global), no es código de la app.
     "references/**",
+    // Capturas y scripts temporales de Playwright MCP (ya ignorados en .gitignore).
+    ".playwright-mcp/**",
   ]),
 ]);
 
