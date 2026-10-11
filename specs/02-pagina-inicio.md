@@ -1,6 +1,6 @@
 # SPEC 02 — Página de inicio (landing)
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** SPEC 01
 > **Fecha:** 2026-10-11
 > **Objetivo:** Implementar la landing de `references/templates/home-about/home.jsx` en `/` como primer tab `Inicio` del Nav, moviendo la Biblioteca a `/games`.
@@ -93,24 +93,24 @@ Convenciones (heredadas de SPEC 01):
 
 ## Criterios de aceptación
 
-- [ ] `npm run build` y `npm run lint` terminan sin errores.
-- [ ] `/` renderiza la landing con las secciones Hero, `// 01`, `// 02`, stats, `// 03`, `// 04` y CTA final, sin errores en consola.
-- [ ] `/` usa las mismas clases CSS que `home.jsx` y se ve igual lado a lado con `references/templates/home-about/arcade-vault-standalone.html`.
-- [ ] Las 8 siluetas del hero flotan animadas.
-- [ ] Las secciones `.reveal` empiezan ocultas y reciben la clase `in` al entrar en viewport.
-- [ ] `// 02` muestra exactamente 6 mini-cards; clic en una lleva a `/games/<id>`.
-- [ ] El ticker muestra 7 filas y el top 5 filas, con números formateados `es-ES` (p.ej. `184.220`).
-- [ ] `EXPLORAR JUEGOS`, `VER TODOS LOS JUEGOS →` e `INSERTAR MONEDA →` llevan a `/games`.
-- [ ] `CREAR CUENTA` y `EMPEZAR GRATIS →` llevan a `/login`.
-- [ ] `VER SALÓN →` lleva a `/hall-of-fame`.
-- [ ] `/games` muestra la Biblioteca con búsqueda, chips y estado vacío funcionando como en SPEC 01.
-- [ ] `Inicio` es el primer link del Nav en escritorio y en el panel móvil.
-- [ ] `Inicio` tiene clase `active` solo en `/`; `Biblioteca` en `/games` y `/games/<id>`; `Salón de la Fama` en `/hall-of-fame`.
-- [ ] El logo lleva a `/`.
-- [ ] `VOLVER AL VAULT` (detalle y modal de fin), `VOLVER A LA BIBLIOTECA` (Salón), submit de login y `JUGAR COMO INVITADO` llevan a `/games`.
-- [ ] `/games/xyz` y rutas desconocidas muestran not-found con botón a `/`.
-- [ ] La página de Inicio no importa arrays de `app/data/` directamente.
-- [ ] `app/globals.css` no incluye los bloques `ABOUT PAGE`, `GAMEPAD` ni `Theme variants`.
+- [x] `npm run build` y `npm run lint` terminan sin errores.
+- [x] `/` renderiza la landing con las secciones Hero, `// 01`, `// 02`, stats, `// 03`, `// 04` y CTA final, sin errores en consola.
+- [x] `/` usa las mismas clases CSS que `home.jsx` y se ve igual lado a lado con `references/templates/home-about/arcade-vault-standalone.html`.
+- [x] Las 8 siluetas del hero flotan animadas.
+- [x] Las secciones `.reveal` empiezan ocultas y reciben la clase `in` al entrar en viewport.
+- [x] `// 02` muestra exactamente 6 mini-cards; clic en una lleva a `/games/<id>`.
+- [x] El ticker muestra 7 filas y el top 5 filas, con números formateados `es-ES` (p.ej. `184.220`).
+- [x] `EXPLORAR JUEGOS`, `VER TODOS LOS JUEGOS →` e `INSERTAR MONEDA →` llevan a `/games`.
+- [x] `CREAR CUENTA` y `EMPEZAR GRATIS →` llevan a `/login`.
+- [x] `VER SALÓN →` lleva a `/hall-of-fame`.
+- [x] `/games` muestra la Biblioteca con búsqueda, chips y estado vacío funcionando como en SPEC 01.
+- [x] `Inicio` es el primer link del Nav en escritorio y en el panel móvil.
+- [x] `Inicio` tiene clase `active` solo en `/`; `Biblioteca` en `/games` y `/games/<id>`; `Salón de la Fama` en `/hall-of-fame`.
+- [x] El logo lleva a `/`.
+- [x] `VOLVER AL VAULT` (detalle y modal de fin), `VOLVER A LA BIBLIOTECA` (Salón), submit de login y `JUGAR COMO INVITADO` llevan a `/games`.
+- [x] `/games/xyz` y rutas desconocidas muestran not-found con botón a `/`.
+- [x] La página de Inicio no importa arrays de `app/data/` directamente.
+- [x] `app/globals.css` no incluye los bloques `ABOUT PAGE`, `GAMEPAD` ni `Theme variants`.
 
 ## Decisiones
 
