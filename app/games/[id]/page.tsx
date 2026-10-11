@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import Leaderboard from "@/app/components/Leaderboard";
+import ScreenLoading from "@/app/components/ScreenLoading";
 import { getGameById, getGames } from "@/app/data/games";
 import { getLeaderboard } from "@/app/data/scores";
 
@@ -9,8 +11,17 @@ export async function generateStaticParams() {
   return games.map((g) => ({ id: g.id }));
 }
 
-export default async function GameDetailPage(props: PageProps<"/games/[id]">) {
-  const { id } = await props.params;
+// params se lee dentro de Suspense para no atar el App Shell a una URL (Partial Prefetching).
+export default function GameDetailPage({ params }: PageProps<"/games/[id]">) {
+  return (
+    <Suspense fallback={<ScreenLoading />}>
+      <GameDetail params={params} />
+    </Suspense>
+  );
+}
+
+async function GameDetail({ params }: Pick<PageProps<"/games/[id]">, "params">) {
+  const { id } = await params;
   const game = await getGameById(id);
   if (!game) notFound();
   const scores = await getLeaderboard(id, 10);
