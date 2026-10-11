@@ -17,6 +17,9 @@ Workflow is Spec Driven Design via `/spec` and `/spec-impl` skills from https://
 - `npm run lint` — ESLint (flat config, `eslint-config-next` core-web-vitals + typescript)
 - No test runner configured yet.
 
+## Skills
+Usa siempre /frontend-design para diseñar la interfaz de usuario 
+
 ## Stack / architecture
 
 - Next.js 16.4 (App Router, `app/`), React 19.3, TypeScript strict. Path alias `@/*` → repo root.
