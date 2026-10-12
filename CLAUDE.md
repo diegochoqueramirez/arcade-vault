@@ -18,7 +18,8 @@ Workflow is Spec Driven Design via `/spec` and `/spec-impl` skills from https://
 - No test runner configured yet.
 
 ## Skills
-Usa siempre /frontend-design para diseñar la interfaz de usuario 
+
+Usa siempre /frontend-design para diseñar la interfaz de usuario
 
 ## Stack / architecture
 
@@ -27,3 +28,12 @@ Usa siempre /frontend-design para diseñar la interfaz de usuario
 - `next.config.ts` enables `cacheComponents` (Cache Components / PPR model — data fetching must respect `"use cache"` / Suspense boundaries), `partialPrefetching`, and `experimental.agentFeedback`.
 - Tailwind CSS v4 loaded through a Turbopack rule (`@tailwindcss/turbopack` loader on `*.css`), not PostCSS. Theme tokens defined in `app/globals.css` via `@theme inline` (CSS variables, dark mode via `prefers-color-scheme`).
 - Layouts use generated global types like `LayoutProps<"/">` (from `.next/types`, produced by `next dev`/`build`).
+
+## Supabase
+
+- Clients in `app/lib/supabase/` (`@supabase/ssr` + `@supabase/supabase-js`): `server.ts` (`server-only`, async `createClient()` with `cookies()` — not inside `"use cache"`; wrap in `<Suspense>`) for Server Components/Route Handlers; `client.ts` (`"use client"`) for Client Components. Never import server from client or vice versa.
+- Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local` (template `.env.example`), read via `getSupabaseEnv()` in `env.ts` (throws if missing). No service role key yet.
+- Health check: `GET /api/health/supabase` → 200 `{ ok: true }` / 500 `{ ok: false, error: "unavailable" }`.
+- Migrations: SQL files in `supabase/migrations/YYYYMMDDHHMMSS_name.sql`, applied to the remote project via Supabase MCP `apply_migration`. No local CLI/Docker.
+- Types: `app/lib/supabase/database.types.ts` is generated (MCP `generate_typescript_types`) — never edit by hand; regenerate after every schema change.
+- Failures are explicit (throw / 500); no fallback to `app/data/` mock data.
