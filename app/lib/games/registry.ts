@@ -2,6 +2,8 @@ import { H as ARKANOID_H, W as ARKANOID_W } from "./arkanoid/constants";
 import { createArkanoidGame } from "./arkanoid/engine";
 import { H as ASTEROIDS_H, W as ASTEROIDS_W } from "./asteroids/constants";
 import { createAsteroidsGame } from "./asteroids/engine";
+import { H as SNAKE_H, W as SNAKE_W } from "./snake/constants";
+import { createSnakeGame } from "./snake/engine";
 import { H as TETRIS_H, W as TETRIS_W } from "./tetris/constants";
 import { createTetrisGame } from "./tetris/engine";
 import type { GameFactory } from "./types";
@@ -24,5 +26,10 @@ export const GAME_ENGINES: Record<
     create: createArkanoidGame,
     width: ARKANOID_W,
     height: ARKANOID_H,
+  },
+  snake: {
+    create: createSnakeGame,
+    width: SNAKE_W,
+    height: SNAKE_H,
   },
 };
