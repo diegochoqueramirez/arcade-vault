@@ -10,6 +10,10 @@ Arcade Vault: online platform to play games and compete for highest score. Catal
 
 Workflow is Spec Driven Design via `/spec` and `/spec-impl` skills from https://github.com/Klerith/fernando-skills (install: `npx skills@latest add Klerith/fernando-skills`). Follow those skills' conventions when planning/implementing features.
 
+Specs in `specs/NN-name.md` (Spanish, header `> **Estado:**`), all `Implementado`: 01 MVP visual screens, 02 landing, 03 about + contact, 04 Supabase base, 05 Asteroids, 06 `games`/`scores` tables + leaderboard, 07 Tetris (+ generic registry), 08 Arkanoid, 09 Snake. One branch `spec-NN-<slug>` + PR per spec.
+
+UI language is Spanish (`<html lang="es">`); code/identifiers in English.
+
 ## Commands
 
 - `npm run dev` — dev server (http://localhost:3000)
@@ -27,16 +31,36 @@ Usa siempre /frontend-design para diseñar la interfaz de usuario
 - **Next 16 differs from training data** — check `node_modules/next/dist/docs/` before using any Next API.
 - `next.config.ts` enables `cacheComponents` (Cache Components / PPR model — data fetching must respect `"use cache"` / Suspense boundaries), `partialPrefetching`, and `experimental.agentFeedback`.
 - Tailwind CSS v4 loaded through a Turbopack rule (`@tailwindcss/turbopack` loader on `*.css`), not PostCSS. Theme tokens defined in `app/globals.css` via `@theme inline` (CSS variables, dark mode via `prefers-color-scheme`).
-- Layouts use generated global types like `LayoutProps<"/">` (from `.next/types`, produced by `next dev`/`build`).
+- Layouts use generated global types like `LayoutProps<"/">` / `PageProps<"/games/[id]/play">` (from `.next/types`, produced by `next dev`/`build`).
+- Root layout: fonts `Press_Start_2P`, `JetBrains_Mono`, `Courier_Prime` (`next/font/google`, CSS vars `--font-*`), background layers `.av-bg`/`.av-noise`, `Nav` + `main.av-main` + `Footer`. Retro styles mostly in `app/globals.css` classes (ported from `references/templates/styles.css`).
+- Deps beyond Next/React: `@supabase/ssr`, `@supabase/supabase-js`, `resend`.
+
+## Routes
+
+- Valid `[id]` values = games listed in `references/implemented-games.md` (read it instead of the DB).
+- `/` — landing (`Home` + `RevealObserver` scroll reveals): featured games from Supabase + activity (recent scores / top players) still mock from `app/data/activity.ts`.
+- `/games` — library (`Library`: search, category chips, `GameCard` grid with 3D tilt). To know which games it lists (id, title, category, short description, color), read `references/implemented-games.md` — don't query the DB.
+- `/games/[id]` — game detail + `Leaderboard`; `/games/[id]/play` — `GamePlayer` (canvas + HUD + save-score form). Both use `generateStaticParams` from `getGames()` and read `params` inside `<Suspense fallback={<ScreenLoading />}>` (keeps App Shell URL-agnostic for Partial Prefetching); unknown id → `notFound()`.
+- `/hall-of-fame` — `HallOfFame`, top 12 per game (`getLeaderboard(id, 12)`).
+- `/about` — `About` + `ContactForm` → `POST /api/contact`.
+- `/login` — `AuthForm`, visual only (no real auth; submit redirects to `/games`).
+- `app/not-found.tsx` — custom 404.
+- UI components live flat in `app/components/` (Server by default; `"use client"` only where needed). Design reference: `references/templates/` (original JSX/HTML mockups, never modified).
+
+## Contact (SPEC 03)
+
+- `app/api/contact/route.ts`: validates `name` ≤60, `email` ≤254 + regex, `msg` ≤2000; honeypot `website` (filled → fake `{ ok: true }`). Responses: `{ ok: true }` / 400 `{ ok:false, error:"invalid", fields }` / 500 `{ ok:false, error:"send_failed" }`.
+- Sends via Resend; env `RESEND_API_KEY`, `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` (missing → 500 + `console.error`).
 
 ## Games
 
+- **Implemented games list: read `references/implemented-games.md`** (id, name, category, short description, color) — don't query Supabase to find out which games exist. Update that file whenever a game is added.
 - Engines in `app/lib/games/<id>/` (`constants.ts`, `entities.ts`, `engine.ts`), ported from `references/starter-games/` (never modified); exception: Snake is an original engine (no starter game) using sprites from `references/source-assets/snake-assets/`. Factory `create<Game>Game(canvas, callbacks): GameEngine`; all mutable state in the closure, rAF loop, keyboard on `window`, `destroy()` removes everything.
 - Assets (sprites, sounds) copied to `public/games/<id>/` and loaded by the factory from `/games/<id>/...` (Arkanoid: sprites + sounds; Snake: `fruits.png` only).
 - Contract in `app/lib/games/types.ts` (`GameSnapshot`, `GameCallbacks`, `GameEngine`, `GameFactory`). Snapshot: `score`, `paused`, optional `lives`/`level` (HUD hides them when undefined), `extra` label/value pairs.
 - `app/lib/games/registry.ts` (client): `GAME_ENGINES` id → `{ create, width, height }`; `GamePlayer` mounts `GameCanvas` when the id is registered, placeholder otherwise.
 - `app/lib/games/playable.ts` (no deps): `PLAYABLE_GAMES` + `isPlayable()`, used by `saveScore`.
-- Adding a game = engine + `GAME_ENGINES` entry + id in `PLAYABLE_GAMES` + seed migration in `games` (see `/nuevo-juego` skill).
+- Adding a game = engine + `GAME_ENGINES` entry + id in `PLAYABLE_GAMES` + seed migration in `games` + row in `references/implemented-games.md` (see `/nuevo-juego` skill in `.claude/skills/nuevo-juego/SKILL.md`).
 
 ## Supabase
 
@@ -48,6 +72,6 @@ Usa siempre /frontend-design para diseñar la interfaz de usuario
 - `npm run build` needs Supabase reachable (prerender + `generateStaticParams` read `games`).
 - Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local` (template `.env.example`), read via `getSupabaseEnv()` in `env.ts` (throws if missing). No service role key yet.
 - Health check: `GET /api/health/supabase` → 200 `{ ok: true }` / 500 `{ ok: false, error: "unavailable" }`.
-- Migrations: SQL files in `supabase/migrations/YYYYMMDDHHMMSS_name.sql`, applied to the remote project via Supabase MCP `apply_migration`. No local CLI/Docker.
+- Migrations: SQL files in `supabase/migrations/YYYYMMDDHHMMSS_name.sql`, applied to the remote project via Supabase MCP `apply_migration` (server configured in `.mcp.json`, HTTP, project ref `vmlrpblibrhjgljrkiqb`). No local CLI/Docker. Current: `create_games_scores`, `seed_games` (asteroids), `seed_tetris`, `seed_arkanoid`, `seed_snake`.
 - Types: `app/lib/supabase/database.types.ts` is generated (MCP `generate_typescript_types`) — never edit by hand; regenerate after every schema change.
 - Failures are explicit (throw / 500); no fallback to `app/data/` mock data.
