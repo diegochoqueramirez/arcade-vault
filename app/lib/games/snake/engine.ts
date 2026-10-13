@@ -2,7 +2,6 @@ import {
   ASSETS,
   BASE_STEP_MS,
   CELL,
-  COLORS,
   COLS,
   type Cell,
   type Dir,
@@ -21,7 +20,14 @@ import {
   W,
 } from "./constants";
 import { Fruit, Snake, sameCell } from "./entities";
-import type { GameCallbacks, GameEngine, GameSnapshot } from "../types";
+import { SKINS } from "./skins";
+import {
+  DEFAULT_SKIN,
+  type GameCallbacks,
+  type GameEngine,
+  type GameOptions,
+  type GameSnapshot,
+} from "../types";
 type Status = "playing" | "gameover" | "win";
 // Teclas cuyo comportamiento por defecto (scroll) se bloquea.
 const PREVENT_DEFAULT = new Set([
@@ -54,7 +60,10 @@ function stepMs(level: number) {
 export function createSnakeGame(
   canvas: HTMLCanvasElement,
   callbacks: GameCallbacks,
+  options?: GameOptions,
 ): GameEngine {
+  // Skin fija durante la vida del motor (GameCanvas remonta al cambiarla).
+  const palette = SKINS[options?.skin ?? DEFAULT_SKIN];
   const maybeCtx = canvas.getContext("2d");
   if (!maybeCtx) throw new Error("Canvas 2D no disponible");
   const ctx: CanvasRenderingContext2D = maybeCtx;
@@ -168,19 +177,21 @@ export function createSnakeGame(
   }
   // ── Draw ────────────────────────────────────────────────────────────────────
   function drawBoard() {
-    ctx.fillStyle = COLORS.background;
+    ctx.fillStyle = palette.background;
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = COLORS.checker;
+    ctx.fillStyle = palette.checker;
     for (let row = 0; row < ROWS; row++)
       for (let col = row % 2; col < COLS; col += 2)
         ctx.fillRect(col * CELL, HUD_H + row * CELL, CELL, CELL);
   }
   function drawHUD() {
-    ctx.fillStyle = COLORS.hudBar;
+    ctx.fillStyle = palette.hudBar;
     ctx.fillRect(0, 0, W, HUD_H);
-    ctx.fillStyle = COLORS.hudLine;
+    ctx.fillStyle = palette.hudLine;
     ctx.fillRect(0, HUD_H - 1, W, 1);
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = palette.hudText;
+    ctx.shadowColor = palette.hudText;
+    ctx.shadowBlur = palette.hudGlow;
     ctx.font = "bold 18px monospace";
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
@@ -189,21 +200,25 @@ export function createSnakeGame(
     ctx.fillText(`Nivel: ${level}`, W / 2, HUD_H / 2);
     ctx.textAlign = "right";
     ctx.fillText(`Longitud: ${snake.length}`, W - 10, HUD_H / 2);
+    ctx.shadowBlur = 0;
   }
   function drawOverlay(message: string) {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.fillStyle = palette.overlayBg;
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = palette.overlayText;
+    ctx.shadowColor = palette.overlayText;
+    ctx.shadowBlur = palette.hudGlow;
     ctx.font = "bold 64px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(message, W / 2, H / 2);
+    ctx.shadowBlur = 0;
   }
   function draw() {
     drawBoard();
     if (!sheetReady) return;
-    fruit?.draw(ctx, sheet);
-    snake.draw(ctx, dir);
+    fruit?.draw(ctx, sheet, palette);
+    snake.draw(ctx, dir, palette);
     drawHUD();
     if (status === "gameover") drawOverlay("GAME OVER");
     if (status === "win") drawOverlay("¡TABLERO COMPLETO!");

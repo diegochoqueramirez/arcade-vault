@@ -5,7 +5,7 @@ const LABELS: Record<SkinId, string> = {
   neon: "NEÓN",
   retro: "RETRO",
 };
-// Selector de skin de un juego concreto (cada juego guarda el suyo).
+// Selector de skin de un juego concreto (cada juego tiene el suyo).
 export default function SkinSelector({
   gameId,
   value,

@@ -54,17 +54,13 @@ La infraestructura común se crea **la primera vez que se aplica skin a un juego
    - Campo **opcional** `skins?: Record<SkinId, unknown>`, para que los juegos que aún no tienen skins compilen.
    - Solo la entrada del juego indicado recibe `skins: SKINS`.
 4. **Selector por juego** (cada juego tiene su propio control)
-   - **`app/lib/games/skin-store.ts`** (cliente)
-     - `useGameSkin(gameId)` devuelve `[skin, setSkin]` y usa `useSyncExternalStore`.
-     - Persiste en `localStorage` con la clave `av-skin:<gameId>`, con lecturas y escrituras dentro de `try/catch`.
-     - Sincroniza componentes con un evento propio y pestañas con el evento `storage`.
-     - El snapshot de servidor y cualquier valor inválido caen a `DEFAULT_SKIN`.
+   - **Sin persistencia**: el skin es estado local del juego (`useState` en `GamePlayer`), nunca `localStorage` ni otro almacenamiento. Cada visita arranca en `DEFAULT_SKIN`.
    - **`app/components/SkinSelector.tsx`** (`"use client"`)
      - Props `{ gameId, value, onChange }`.
      - Chips `CLÁSICO` / `NEÓN` / `RETRO` con `aria-pressed`, siguiendo la estética retro del sitio.
      - Estilos como clases en `app/globals.css` (`.skin-selector`), con los tokens existentes y usable en ancho móvil.
    - **`GamePlayer`**
-     - Si `engine.skins` existe: usa `useGameSkin(game.id)`, muestra el `SkinSelector` en el `player-hud` (junto a `hud-actions`) y pasa `options={{ skin }}` a `GameCanvas`.
+     - Si `engine.skins` existe: usa `useState<SkinId>(DEFAULT_SKIN)`, muestra el `SkinSelector` en el `player-hud` (junto a `hud-actions`) y pasa `options={{ skin }}` a `GameCanvas`.
      - Si no existe: no muestra selector y el juego se ve en `classic`.
    - **`GameCanvas`** monta con `key={skin}`. Cambiar de skin reinicia la partida; deja esta decisión documentada en un comentario.
    - No se toca `Nav`: no hay selector global.
@@ -95,7 +91,7 @@ La infraestructura común se crea **la primera vez que se aplica skin a un juego
 
 - Solo puedes tocar:
   - `app/lib/games/<id>/` **del juego indicado** (motor y `skins.ts`), y su entrada en `registry.ts`.
-  - La infraestructura común, solo si falta: `types.ts`, `skin-store.ts`, `SkinSelector.tsx`, `GameCanvas.tsx`, `GamePlayer.tsx` y las clases `.skin-selector` en `app/globals.css`.
+  - La infraestructura común, solo si falta: `types.ts`, `SkinSelector.tsx`, `GameCanvas.tsx`, `GamePlayer.tsx` y las clases `.skin-selector` en `app/globals.css`.
   - `references/game-with-themes.md`.
 - No toques:
   - Los motores de otros juegos.
@@ -144,7 +140,7 @@ Edita `references/game-with-themes.md`:
 ```md
 # Juegos con temas (skins) — skin-designer
 
-> Referencia de qué juegos tienen skins. Mantenido por el agente `skin-designer` (`.claude/agents/skin-designer.md`), un juego por ejecución, siempre indicado por el usuario. Skins obligatorios: classic (default) · neon · retro, afinados para modo oscuro. Selector por juego en `GamePlayer` (`localStorage` `av-skin:<id>`).
+> Referencia de qué juegos tienen skins. Mantenido por el agente `skin-designer` (`.claude/agents/skin-designer.md`), un juego por ejecución, siempre indicado por el usuario. Skins obligatorios: classic (default) · neon · retro, afinados para modo oscuro. Selector por juego en `GamePlayer` (estado local de `GamePlayer`, sin persistencia).
 > Leyenda: ✅ implementado · ❌ pendiente
 
 ## Matriz
@@ -156,7 +152,6 @@ Edita `references/game-with-themes.md`:
 
 - [ ] `SkinId` / `GameOptions` en `app/lib/games/types.ts`
 - [ ] `skins?` en `GAME_ENGINES` (`registry.ts`)
-- [ ] `app/lib/games/skin-store.ts`
 - [ ] `SkinSelector` en `GamePlayer`
 - [ ] `GameCanvas` pasa `options`
 

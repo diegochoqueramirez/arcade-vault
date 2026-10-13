@@ -1,10 +1,12 @@
 import { H as ARKANOID_H, W as ARKANOID_W } from "./arkanoid/constants";
 import { createArkanoidGame } from "./arkanoid/engine";
+import { SKINS as ARKANOID_SKINS } from "./arkanoid/skins";
 import { H as ASTEROIDS_H, W as ASTEROIDS_W } from "./asteroids/constants";
 import { createAsteroidsGame } from "./asteroids/engine";
 import { SKINS as ASTEROIDS_SKINS } from "./asteroids/skins";
 import { H as SNAKE_H, W as SNAKE_W } from "./snake/constants";
 import { createSnakeGame } from "./snake/engine";
+import { SKINS as SNAKE_SKINS } from "./snake/skins";
 import { H as TETRIS_H, W as TETRIS_W } from "./tetris/constants";
 import { createTetrisGame } from "./tetris/engine";
 import type { GameFactory, SkinId } from "./types";
@@ -34,10 +36,12 @@ export const GAME_ENGINES: Record<
     create: createArkanoidGame,
     width: ARKANOID_W,
     height: ARKANOID_H,
+    skins: ARKANOID_SKINS,
   },
   snake: {
     create: createSnakeGame,
     width: SNAKE_W,
     height: SNAKE_H,
+    skins: SNAKE_SKINS,
   },
 };

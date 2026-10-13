@@ -1,12 +1,12 @@
 import {
   CELL,
   type Cell,
-  COLORS,
   DIR_DELTA,
   type Dir,
   HUD_H,
   type Sprite,
 } from "./constants";
+import type { SnakePalette } from "./skins";
 export function sameCell(a: Cell, b: Cell) {
   return a.col === b.col && a.row === b.row;
 }
@@ -59,19 +59,34 @@ export class Snake {
     this.cells.unshift(head);
     if (!grow) this.cells.pop();
   }
-  draw(ctx: CanvasRenderingContext2D, dir: Dir) {
+  draw(ctx: CanvasRenderingContext2D, dir: Dir, palette: SnakePalette) {
     const inset = 2;
     const size = CELL - inset * 2;
+    // Glow solo en los segmentos; se resetea antes de los ojos.
+    ctx.shadowBlur = palette.glow;
     for (let i = this.cells.length - 1; i >= 0; i--) {
       const c = this.cells[i];
-      ctx.fillStyle = i === 0 ? COLORS.head : COLORS.body;
+      const color = i === 0 ? palette.head : palette.body;
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
       ctx.beginPath();
-      ctx.roundRect(cellX(c) + inset, cellY(c) + inset, size, size, 8);
+      ctx.roundRect(
+        cellX(c) + inset,
+        cellY(c) + inset,
+        size,
+        size,
+        palette.segmentRadius,
+      );
       ctx.fill();
     }
-    this.drawEyes(ctx, dir);
+    ctx.shadowBlur = 0;
+    this.drawEyes(ctx, dir, palette);
   }
-  private drawEyes(ctx: CanvasRenderingContext2D, dir: Dir) {
+  private drawEyes(
+    ctx: CanvasRenderingContext2D,
+    dir: Dir,
+    palette: SnakePalette,
+  ) {
     const cx = cellX(this.head) + CELL / 2;
     const cy = cellY(this.head) + CELL / 2;
     const d = DIR_DELTA[dir];
@@ -79,7 +94,7 @@ export class Snake {
     const fwd = 7;
     const side = 8;
     const eye = 6;
-    ctx.fillStyle = COLORS.eye;
+    ctx.fillStyle = palette.eye;
     for (const s of [-1, 1]) {
       const ex = cx + d.col * fwd + d.row * side * s;
       const ey = cy + d.row * fwd + d.col * side * s;
@@ -92,7 +107,14 @@ export class Fruit {
     public cell: Cell,
     public sprite: Sprite,
   ) {}
-  draw(ctx: CanvasRenderingContext2D, sheet: CanvasImageSource) {
+  // El filtro de la skin tiñe solo el sprite y se restaura después.
+  draw(
+    ctx: CanvasRenderingContext2D,
+    sheet: CanvasImageSource,
+    palette: SnakePalette,
+  ) {
+    ctx.filter = palette.fruitFilter;
     drawSprite(ctx, sheet, this.sprite, this.cell, CELL - 8);
+    ctx.filter = "none";
   }
 }
