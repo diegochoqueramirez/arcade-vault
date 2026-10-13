@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CATEGORIES, type Game } from "@/app/data/games";
+import { CATEGORIES, type Game } from "@/app/data/catalog";
 import GameCard from "./GameCard";
 
 type Category = (typeof CATEGORIES)[number];

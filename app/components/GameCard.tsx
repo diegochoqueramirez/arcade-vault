@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, type MouseEvent } from "react";
-import type { Game } from "@/app/data/games";
+import type { Game } from "@/app/data/catalog";
 
 export default function GameCard({ game }: { game: Game }) {
   const router = useRouter();

@@ -1,21 +1,9 @@
-export type GameCategory = "ARCADE" | "PUZZLE" | "SHOOTER" | "VERSUS";
-export type GameColor = "cyan" | "magenta" | "yellow" | "green";
+import type { Game } from "./catalog";
 
-export interface Game {
-  id: string;
-  title: string;
-  short: string;
-  long: string;
-  cat: GameCategory;
-  cover: string;
-  color: GameColor;
-  best: number;
-  plays: string;
-}
-
-export const CATEGORIES = ["TODOS", "ARCADE", "PUZZLE", "SHOOTER", "VERSUS"] as const;
-
-const GAMES: Game[] = [
+// Datos de referencia (mock) de los juegos placeholder. La app ya no importa este archivo:
+// el catálogo sale de Supabase (catalog.server.ts). Se conserva para insertar estos juegos
+// en la base de datos en un spec futuro.
+export const PLACEHOLDER_GAMES: Game[] = [
   {
     id: "bloque-buster",
     title: "BLOQUE BUSTER",
@@ -104,23 +92,4 @@ const GAMES: Game[] = [
     best: 24,
     plays: "4.2K",
   },
-  {
-    id: "asteroids",
-    title: "ASTEROIDS",
-    short: "Destruye asteroides en el espacio toroidal.",
-    long: "Pilota una nave triangular en un campo de asteroides donde los bordes se conectan. Los grandes se parten en medianos y los medianos en pequeños. Tienes 3 vidas y un power-up de triple disparo que aparece al destruir rocas.",
-    cat: "SHOOTER",
-    cover: "cover-rocas",
-    color: "cyan",
-    best: 0,
-    plays: "0",
-  },
 ];
-
-export async function getGames(): Promise<Game[]> {
-  return GAMES;
-}
-
-export async function getGameById(id: string): Promise<Game | undefined> {
-  return GAMES.find((g) => g.id === id);
-}

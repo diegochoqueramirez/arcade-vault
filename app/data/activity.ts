@@ -1,4 +1,4 @@
-import type { GameColor } from "./games";
+import type { GameColor } from "./catalog";
 
 export interface RecentScore {
   player: string;
