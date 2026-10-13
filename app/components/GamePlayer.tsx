@@ -4,9 +4,14 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { saveScore, type SaveScoreResult } from "@/app/actions/scores";
 import GameCanvas, { type GameController } from "@/app/components/GameCanvas";
+import SkinSelector from "@/app/components/SkinSelector";
 import type { Game } from "@/app/data/catalog";
 import { GAME_ENGINES } from "@/app/lib/games/registry";
-import type { GameSnapshot } from "@/app/lib/games/types";
+import {
+  DEFAULT_SKIN,
+  type GameSnapshot,
+  type SkinId,
+} from "@/app/lib/games/types";
 // Placeholder visual: HUD con valores fijos, sin lógica de juego ni persistencia.
 const PLACEHOLDER: GameSnapshot = {
   score: 0,
@@ -27,6 +32,10 @@ export default function GamePlayer({ game }: { game: Game }) {
   const [saving, startSaving] = useTransition();
   // Juegos con motor registrado; el resto conserva el HUD fijo del placeholder.
   const engine = GAME_ENGINES[game.id];
+  // Skin de la partida en curso (sin persistencia: cada visita empieza en classic).
+  const [selectedSkin, setSkin] = useState<SkinId>(DEFAULT_SKIN);
+  const hasSkins = !!engine?.skins;
+  const skin = hasSkins ? selectedSkin : DEFAULT_SKIN;
   const [snapshot, setSnapshot] = useState<GameSnapshot>({
     score: 0,
     paused: false,
@@ -112,29 +121,38 @@ export default function GamePlayer({ game }: { game: Game }) {
             </div>
           ))}
         </div>
-        <div className="hud-actions">
-          <button className="btn yellow" onClick={togglePause}>
-            {paused ? "REANUDAR" : "PAUSA"}
-          </button>
-          <button className="btn magenta" onClick={end}>
-            FIN
-          </button>
-          <button
-            className="btn ghost"
-            onClick={() => router.push(`/games/${game.id}`)}
-          >
-            SALIR
-          </button>
+        <div className="player-hud-controls">
+          {hasSkins && (
+            <SkinSelector gameId={game.id} value={skin} onChange={setSkin} />
+          )}
+          <div className="hud-actions">
+            <button className="btn yellow" onClick={togglePause}>
+              {paused ? "REANUDAR" : "PAUSA"}
+            </button>
+            <button className="btn magenta" onClick={end}>
+              FIN
+            </button>
+            <button
+              className="btn ghost"
+              onClick={() => router.push(`/games/${game.id}`)}
+            >
+              SALIR
+            </button>
+          </div>
         </div>
       </div>
       <div className="crt">
         <div className="crt-screen">
           {engine ? (
+            // key={skin}: cambiar de skin remonta GameCanvas y reinicia la partida
+            // (el motor se crea una sola vez y fija la paleta en su factory).
             <GameCanvas
+              key={skin}
               ref={gameRef}
               create={engine.create}
               width={engine.width}
               height={engine.height}
+              options={{ skin }}
               onStateChange={setSnapshot}
               onGameOver={handleGameOver}
             />

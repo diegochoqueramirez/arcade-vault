@@ -12,10 +12,18 @@ import {
   Particle,
   PowerUp,
   Ship,
+  clearGlow,
   dist,
   rand,
+  setGlow,
 } from "./entities";
-import type { GameCallbacks, GameEngine } from "../types";
+import { SKINS } from "./skins";
+import {
+  DEFAULT_SKIN,
+  type GameCallbacks,
+  type GameEngine,
+  type GameOptions,
+} from "../types";
 // Asteroids siempre informa vidas y nivel.
 interface AsteroidsSnapshot {
   score: number;
@@ -42,7 +50,10 @@ function isEditable(target: EventTarget | null) {
 export function createAsteroidsGame(
   canvas: HTMLCanvasElement,
   callbacks: GameCallbacks,
+  options?: GameOptions,
 ): GameEngine {
+  // Paleta fija durante toda la vida del motor (cambiar de skin lo recrea).
+  const palette = SKINS[options?.skin ?? DEFAULT_SKIN];
   const maybeCtx = canvas.getContext("2d");
   if (!maybeCtx) throw new Error("Canvas 2D no disponible");
   const ctx: CanvasRenderingContext2D = maybeCtx;
@@ -228,7 +239,8 @@ export function createAsteroidsGame(
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(-Math.PI / 2);
-    ctx.strokeStyle = "#fff";
+    ctx.strokeStyle = palette.lifeIcon;
+    setGlow(ctx, palette.lifeIcon, palette.hudGlow);
     ctx.lineWidth = 1.2;
     ctx.lineJoin = "round";
     ctx.beginPath();
@@ -238,39 +250,46 @@ export function createAsteroidsGame(
     ctx.lineTo(-6, 5);
     ctx.closePath();
     ctx.stroke();
+    clearGlow(ctx);
     ctx.restore();
   }
   function drawHUD() {
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = palette.hud;
+    setGlow(ctx, palette.hud, palette.hudGlow);
     ctx.font = "15px monospace";
     ctx.textAlign = "left";
     ctx.fillText(`SCORE  ${score}`, 14, 26);
     ctx.textAlign = "center";
     ctx.fillText(`NIVEL ${level}`, W / 2, 26);
+    clearGlow(ctx);
     for (let i = 0; i < lives; i++) drawLifeIcon(W - 16 - i * 22, 18);
     if (ship.tripleShot > 0) {
       ctx.textAlign = "left";
-      ctx.fillStyle = "#0ff";
+      ctx.fillStyle = palette.hudAccent;
+      setGlow(ctx, palette.hudAccent, palette.hudGlow);
       ctx.fillText(`3x  ${ship.tripleShot.toFixed(1)}s`, 14, 46);
+      clearGlow(ctx);
     }
   }
   function drawOverlay(title: string, sub: string) {
     ctx.textAlign = "center";
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = palette.overlayTitle;
+    setGlow(ctx, palette.overlayTitle, palette.hudGlow);
     ctx.font = "bold 46px monospace";
     ctx.fillText(title, W / 2, H / 2 - 18);
+    clearGlow(ctx);
     ctx.font = "18px monospace";
-    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.fillStyle = palette.overlaySub;
     ctx.fillText(sub, W / 2, H / 2 + 22);
   }
   function draw() {
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = palette.bg;
     ctx.fillRect(0, 0, W, H);
-    particles.forEach((p) => p.draw(ctx));
-    asteroids.forEach((a) => a.draw(ctx));
-    powerUps.forEach((p) => p.draw(ctx));
-    bullets.forEach((b) => b.draw(ctx));
-    ship.draw(ctx);
+    particles.forEach((p) => p.draw(ctx, palette));
+    asteroids.forEach((a) => a.draw(ctx, palette));
+    powerUps.forEach((p) => p.draw(ctx, palette));
+    bullets.forEach((b) => b.draw(ctx, palette));
+    ship.draw(ctx, palette);
     drawHUD();
     if (status === "gameover") drawOverlay("GAME OVER", `PUNTAJE: ${score}`);
   }

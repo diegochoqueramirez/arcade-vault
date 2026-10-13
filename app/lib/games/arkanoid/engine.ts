@@ -19,10 +19,16 @@ import {
   Block,
   Explosion,
   Paddle,
-  drawSprite,
+  drawSkinnedSprite,
   overlaps,
 } from "./entities";
-import type { GameCallbacks, GameEngine } from "../types";
+import { SKINS } from "./skins";
+import {
+  DEFAULT_SKIN,
+  type GameCallbacks,
+  type GameEngine,
+  type GameOptions,
+} from "../types";
 // Arkanoid siempre informa vidas y nivel.
 interface ArkanoidSnapshot {
   score: number;
@@ -44,7 +50,10 @@ function isEditable(target: EventTarget | null) {
 export function createArkanoidGame(
   canvas: HTMLCanvasElement,
   callbacks: GameCallbacks,
+  options?: GameOptions,
 ): GameEngine {
+  // Skin fijo durante la vida del motor (GameCanvas remonta con key={skin}).
+  const palette = SKINS[options?.skin ?? DEFAULT_SKIN];
   const maybeCtx = canvas.getContext("2d");
   if (!maybeCtx) throw new Error("Canvas 2D no disponible");
   const ctx: CanvasRenderingContext2D = maybeCtx;
@@ -220,41 +229,71 @@ export function createArkanoidGame(
     }
   }
   // ── Draw ────────────────────────────────────────────────────────────────────
+  // Glow del texto (solo si el skin lo usa); se resetea tras cada dibujo.
+  function setTextGlow(color: string) {
+    if (palette.hudGlow === 0) return;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = palette.hudGlow;
+  }
+  function clearGlow() {
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = "transparent";
+  }
   function drawHUD() {
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = palette.hud;
+    setTextGlow(palette.hud);
     ctx.font = "bold 18px monospace";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.fillText(`Score: ${score}`, 10, 10);
     ctx.textAlign = "center";
     ctx.fillText(`Nivel: ${level}`, W / 2, 10);
+    clearGlow();
     const ballSize = 16;
     const ballSpacing = 4;
     for (let i = 0; i < lives; i++) {
       const bx = W - 10 - (lives - i) * (ballSize + ballSpacing);
-      drawSprite(ctx, sheet, SPRITES.ball, bx, 10, ballSize, ballSize);
+      drawSkinnedSprite(
+        ctx,
+        sheet,
+        SPRITES.ball,
+        bx,
+        10,
+        ballSize,
+        ballSize,
+        palette.spriteFilter,
+      );
     }
   }
   function drawOverlay(message: string) {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.fillStyle = palette.overlayBg;
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = palette.overlayText;
+    setTextGlow(palette.overlayText);
     ctx.font = "bold 64px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(message, W / 2, H / 2);
+    clearGlow();
+  }
+  // Scanlines CRT (solo retro): 1 px oscuro cada 4 px.
+  function drawScanlines() {
+    if (!palette.scanlines) return;
+    ctx.fillStyle = palette.scanlines;
+    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
   }
   function draw() {
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = palette.bg;
     ctx.fillRect(0, 0, W, H);
     if (!sheetReady) return;
-    blocks.forEach((b) => b.alive && b.draw(ctx, sheet));
-    explosions.forEach((e) => e.draw(ctx, sheet));
-    paddle.draw(ctx, sheet);
-    ball.draw(ctx, sheet);
+    blocks.forEach((b) => b.alive && b.draw(ctx, sheet, palette));
+    explosions.forEach((e) => e.draw(ctx, sheet, palette));
+    paddle.draw(ctx, sheet, palette);
+    ball.draw(ctx, sheet, palette);
     if (status === "playing") drawHUD();
     if (status === "gameover") drawOverlay("GAME OVER");
     if (status === "win") drawOverlay("¡Completaste el juego!");
+    drawScanlines();
   }
   // ── Notificación a React ────────────────────────────────────────────────────
   // Solo se emite si algún campo cambió respecto al último snapshot: nunca por frame.

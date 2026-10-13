@@ -4,6 +4,7 @@ import type {
   GameCallbacks,
   GameEngine,
   GameFactory,
+  GameOptions,
 } from "@/app/lib/games/types";
 // Controlador expuesto al padre; destroy() lo gestiona solo este componente.
 export type GameController = Omit<GameEngine, "destroy">;
@@ -11,6 +12,7 @@ interface Props extends GameCallbacks {
   create: GameFactory;
   width: number;
   height: number;
+  options?: GameOptions;
   ref?: Ref<GameController>;
 }
 // Resolución lógica fija; CSS la escala dentro del .crt-screen (letterbox si no es 4:3).
@@ -18,6 +20,7 @@ export default function GameCanvas({
   create,
   width,
   height,
+  options,
   ref,
   ...callbacks
 }: Props) {
@@ -26,6 +29,8 @@ export default function GameCanvas({
   // Los callbacks y la fábrica viven en refs para que su identidad no recree el motor.
   const callbacksRef = useRef(callbacks);
   const createRef = useRef(create);
+  // Opciones (skin) leídas solo al montar: el padre usa key={skin} para recrear el motor.
+  const optionsRef = useRef(options);
   useEffect(() => {
     callbacksRef.current = callbacks;
   });
@@ -46,7 +51,7 @@ export default function GameCanvas({
     const game = createRef.current(canvas, {
       onStateChange: (s) => callbacksRef.current.onStateChange(s),
       onGameOver: (score) => callbacksRef.current.onGameOver(score),
-    });
+    }, optionsRef.current);
     gameRef.current = game;
     return () => {
       game.destroy();

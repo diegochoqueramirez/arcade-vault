@@ -1427,3 +1427,35 @@ a { color: inherit; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .term-body .error { animation: none; }
 }
+
+/* ===== skin selector (por juego, en el player-hud) ===== */
+.player-hud-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.skin-selector { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.skin-selector-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.14em;
+  margin-right: 2px;
+}
+.skin-chip {
+  padding: 9px 10px;
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.skin-chip:hover:not(.active) { color: var(--ink); }
+.skin-chip:focus-visible { outline: 1px dashed var(--yellow); outline-offset: 2px; }
+.skin-chip.active { color: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,245,255,0.35); }
+.skin-chip.skin-neon.active { color: var(--magenta); border-color: var(--magenta); box-shadow: 0 0 10px rgba(255,0,110,0.45); }
+.skin-chip.skin-retro.active { color: #ffb000; border-color: #ffb000; box-shadow: none; }
+@media (max-width: 520px) {
+  .player-hud-controls { width: 100%; }
+  .skin-selector { width: 100%; }
+  .skin-chip { flex: 1; text-align: center; }
+}

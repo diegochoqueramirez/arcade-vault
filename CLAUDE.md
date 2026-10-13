@@ -25,6 +25,16 @@ UI language is Spanish (`<html lang="es">`); code/identifiers in English.
 
 Usa siempre /frontend-design para diseñar la interfaz de usuario
 
+## Agents
+
+Subagents in `.claude/agents/` (one `.md` each, Spanish prompt).
+
+- `game-planner` — plans/decides which new game fits the platform. Reads `references/implemented-games.md`, starter games, source assets, game contract (`app/lib/games/types.ts`), `CATEGORIES`; scores candidates 1–5 on 6 criteria (/30): retro aesthetic, keyboard + canvas, single numeric score for leaderboard, category diversity, effort, competitive replayability. Outputs 1–3 candidates + recommendation + `implemented-games.md`-style row + next step (`/spec` → `/spec-impl`). No code/specs. Tools: Read, Glob, Grep, Write, Edit; model opus.
+- Memory: `references/game-suggestions-todo.md` (git-versioned, shared by team) — read before suggesting (no repeats), updated after every run. Sections: Pendientes (`- [ ]`, sorted by score), Aceptados, Descartados (with reason + date), Implementados (`- [x]`). Only file the agent may modify. When a game ships, its id moves to Implementados.
+- `game-jam` — user provides the game to implement (agent never picks it); validates input (missing game, already in `specs/game-jam/`, fails keyboard/canvas/score filter → stops without writing); creates `specs/game-jam/<game-id>/` with ≥2 complete phase specs (`01-nucleo-jugable.md`, `02-progresion.md`, optional `03-pulido.md`; state `Borrador`, same format as SPEC 07–09). Only knows existing games via `specs/game-jam/` (no repeated id or game); ignores platform games; doesn't read/write `game-planner`'s todo; only writes inside its folder. Tools: Read, Glob, Grep, Write; model opus.
+
+- `skin-designer` — implements ≥3 skins in ONE platform game per run: `classic` (default, current colors), `neon`, `retro`, all tuned for dark mode (contrast HUD ≥4.5:1, entities ≥3:1; site stays dark-only). Requires a target game given by the user and never picks one itself; never applies skins to all games. Code: `SkinId`/`GameOptions` in `types.ts`, per-game `skins.ts` (`SKINS: Record<SkinId, Palette>`), optional `skins?` in `GAME_ENGINES`, per-game selector (`SkinSelector` in `GamePlayer`, `useState` local, sin persistencia). Memory/reference of which games have skins: `references/game-with-themes.md`. Tools: Read, Glob, Grep, Write, Edit, Bash; model opus.
+
 ## Stack / architecture
 
 - Next.js 16.4 (App Router, `app/`), React 19.3, TypeScript strict. Path alias `@/*` → repo root.
@@ -61,6 +71,7 @@ Usa siempre /frontend-design para diseñar la interfaz de usuario
 - `app/lib/games/registry.ts` (client): `GAME_ENGINES` id → `{ create, width, height }`; `GamePlayer` mounts `GameCanvas` when the id is registered, placeholder otherwise.
 - `app/lib/games/playable.ts` (no deps): `PLAYABLE_GAMES` + `isPlayable()`, used by `saveScore`.
 - Adding a game = engine + `GAME_ENGINES` entry + id in `PLAYABLE_GAMES` + seed migration in `games` + row in `references/implemented-games.md` (see `/nuevo-juego` skill in `.claude/skills/nuevo-juego/SKILL.md`).
+- Choosing the next game: subagent `game-planner` (see Agents).
 
 ## Supabase
 

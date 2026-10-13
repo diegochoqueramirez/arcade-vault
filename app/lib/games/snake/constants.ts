@@ -36,15 +36,6 @@ export const MIN_STEP_MS = 60;
 export const FRUITS_PER_LEVEL = 5;
 export const POINTS_PER_FRUIT = 10;
 export const MAX_QUEUED_TURNS = 2;
-export const COLORS = {
-  background: "#0a0a18",
-  checker: "rgba(255, 255, 255, 0.025)",
-  hudBar: "#05050d",
-  hudLine: "rgba(0, 255, 136, 0.35)",
-  head: "#00ff88",
-  body: "#00c46a",
-  eye: "#0a0a18",
-};
 export const ASSETS = {
   fruits: "/games/snake/fruits.png",
 };

@@ -99,6 +99,7 @@ Antes de usar cualquier API de Next, consulta el doc correspondiente en `node_mo
 3. **Assets:** copiar (`cp`, nunca mover) desde `references/starter-games/<carpeta>/assets/` a `public/games/<id>/`. `references/` queda intacto.
 4. **Motor:** `app/lib/games/<id>/constants.ts`, `entities.ts`, `engine.ts` según § Motor, tomando `app/lib/games/asteroids/` como modelo. Verificar: `npm run build`.
 5. **Alta en la plataforma:** entrada en `GAME_ENGINES` y id en `PLAYABLE_GAMES`. Verificar: `/games/<id>/play` se juega igual que abrir `references/starter-games/<carpeta>/index.html`; guardar crea fila en `scores`.
+   5b. **Skins:** el juego debe tener `classic`/`neon`/`retro` (contrato y reglas en `.claude/agents/skin-designer.md`); delegar en el agente `skin-designer`.
 6. **UI nueva** (portada, mensajes, HUD extra) solo si aplica: diseñar con `/frontend-design`, reutilizando tokens de `app/globals.css`.
 7. **`CLAUDE.md`:** actualizar la frase "Asteroids is the only real game" y la lista de juegos jugables.
 

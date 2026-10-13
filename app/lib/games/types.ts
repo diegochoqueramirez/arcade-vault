@@ -18,7 +18,15 @@ export interface GameEngine {
   restart(): void; // nueva partida → dispara onStateChange
   destroy(): void; // cancela rAF y quita todos los listeners
 }
+// Skins visuales por juego (agente skin-designer). Sin options → DEFAULT_SKIN.
+export const SKIN_IDS = ["classic", "neon", "retro"] as const;
+export type SkinId = (typeof SKIN_IDS)[number];
+export const DEFAULT_SKIN: SkinId = "classic";
+export interface GameOptions {
+  skin: SkinId;
+}
 export type GameFactory = (
   canvas: HTMLCanvasElement,
   callbacks: GameCallbacks,
+  options?: GameOptions,
 ) => GameEngine;
