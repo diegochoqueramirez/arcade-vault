@@ -1,3 +1,5 @@
+import { H as ARKANOID_H, W as ARKANOID_W } from "./arkanoid/constants";
+import { createArkanoidGame } from "./arkanoid/engine";
 import { H as ASTEROIDS_H, W as ASTEROIDS_W } from "./asteroids/constants";
 import { createAsteroidsGame } from "./asteroids/engine";
 import { H as TETRIS_H, W as TETRIS_W } from "./tetris/constants";
@@ -17,5 +19,10 @@ export const GAME_ENGINES: Record<
     create: createTetrisGame,
     width: TETRIS_W,
     height: TETRIS_H,
+  },
+  arkanoid: {
+    create: createArkanoidGame,
+    width: ARKANOID_W,
+    height: ARKANOID_H,
   },
 };
