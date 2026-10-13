@@ -104,6 +104,17 @@ const GAMES: Game[] = [
     best: 24,
     plays: "4.2K",
   },
+  {
+    id: "asteroids",
+    title: "ASTEROIDS",
+    short: "Destruye asteroides en el espacio toroidal.",
+    long: "Pilota una nave triangular en un campo de asteroides donde los bordes se conectan. Los grandes se parten en medianos y los medianos en pequeños. Tienes 3 vidas y un power-up de triple disparo que aparece al destruir rocas.",
+    cat: "SHOOTER",
+    cover: "cover-rocas",
+    color: "cyan",
+    best: 0,
+    plays: "0",
+  },
 ];
 
 export async function getGames(): Promise<Game[]> {
