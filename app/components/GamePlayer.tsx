@@ -3,15 +3,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { saveScore, type SaveScoreResult } from "@/app/actions/scores";
-import AsteroidsCanvas, {
-  type AsteroidsController,
-} from "@/app/components/AsteroidsCanvas";
+import GameCanvas, { type GameController } from "@/app/components/GameCanvas";
 import type { Game } from "@/app/data/catalog";
-import type { AsteroidsSnapshot } from "@/app/lib/games/asteroids/engine";
+import { GAME_ENGINES } from "@/app/lib/games/registry";
+import type { GameSnapshot } from "@/app/lib/games/types";
 // Placeholder visual: HUD con valores fijos, sin lógica de juego ni persistencia.
-const SCORE = 0;
-const LIVES = 3;
-const LEVEL = 1;
+const PLACEHOLDER: GameSnapshot = {
+  score: 0,
+  lives: 3,
+  level: 1,
+  paused: false,
+};
 export default function GamePlayer({ game }: { game: Game }) {
   const router = useRouter();
   const [placeholderPaused, setPlaceholderPaused] = useState(false);
@@ -23,44 +25,42 @@ export default function GamePlayer({ game }: { game: Game }) {
   // Se incrementa en cada error para reiniciar la animación del mensaje.
   const [errorTick, setErrorTick] = useState(0);
   const [saving, startSaving] = useTransition();
-  // Solo asteroids tiene motor real; el resto conserva el HUD fijo del placeholder.
-  const isAsteroids = game.id === "asteroids";
-  const [snapshot, setSnapshot] = useState<AsteroidsSnapshot>({
-    score: SCORE,
-    lives: LIVES,
-    level: LEVEL,
+  // Juegos con motor registrado; el resto conserva el HUD fijo del placeholder.
+  const engine = GAME_ENGINES[game.id];
+  const [snapshot, setSnapshot] = useState<GameSnapshot>({
+    score: 0,
     paused: false,
   });
-  const asteroidsRef = useRef<AsteroidsController>(null);
-  // En asteroids el motor es la fuente de verdad de la pausa (botón, teclas y pestaña).
-  const { score, lives, level, paused } = isAsteroids
+  const gameRef = useRef<GameController>(null);
+  // Con motor, este es la fuente de verdad de la pausa (botón, teclas y pestaña).
+  const { score, lives, level, paused, extra } = engine
     ? snapshot
-    : { score: SCORE, lives: LIVES, level: LEVEL, paused: placeholderPaused };
+    : { ...PLACEHOLDER, paused: placeholderPaused };
   const togglePause = () => {
-    if (isAsteroids) asteroidsRef.current?.togglePause();
+    if (engine) gameRef.current?.togglePause();
     else setPlaceholderPaused((p) => !p);
   };
-  // Puntuación del modal: la notifica el motor en asteroids; fija en el placeholder.
-  const [finalScore, setFinalScore] = useState(SCORE);
+  // Puntuación del modal: la notifica el motor; fija en el placeholder.
+  const [finalScore, setFinalScore] = useState(PLACEHOLDER.score);
   const handleGameOver = (s: number) => {
     setFinalScore(s);
     setOver(true);
   };
-  // En asteroids, end() dispara onGameOver, que abre el modal.
+  // Con motor, end() dispara onGameOver, que abre el modal.
   const end = () => {
-    if (isAsteroids) asteroidsRef.current?.end();
+    if (engine) gameRef.current?.end();
     else setOver(true);
   };
   const restart = () => {
-    if (isAsteroids) asteroidsRef.current?.restart();
+    if (engine) gameRef.current?.restart();
     setPlaceholderPaused(false);
     setOver(false);
     setSaved(false);
     setSaveError(null);
   };
-  // Solo asteroids persiste en Supabase; el placeholder conserva el guardado visual.
+  // Solo los juegos con motor persisten en Supabase; el placeholder conserva el guardado visual.
   const save = () => {
-    if (!isAsteroids) {
+    if (!engine) {
       setSaved(true);
       return;
     }
@@ -93,14 +93,24 @@ export default function GamePlayer({ game }: { game: Game }) {
             <div className="l">Puntuación</div>
             <div className="v">{score.toLocaleString("es-ES")}</div>
           </div>
-          <div className="hud-stat lives">
-            <div className="l">Vidas</div>
-            <div className="v">{"♥ ".repeat(lives).trim()}</div>
-          </div>
-          <div className="hud-stat level">
-            <div className="l">Nivel</div>
-            <div className="v">{String(level).padStart(2, "0")}</div>
-          </div>
+          {lives !== undefined && (
+            <div className="hud-stat lives">
+              <div className="l">Vidas</div>
+              <div className="v">{"♥ ".repeat(lives).trim()}</div>
+            </div>
+          )}
+          {level !== undefined && (
+            <div className="hud-stat level">
+              <div className="l">Nivel</div>
+              <div className="v">{String(level).padStart(2, "0")}</div>
+            </div>
+          )}
+          {extra?.map((e) => (
+            <div key={e.label} className="hud-stat">
+              <div className="l">{e.label}</div>
+              <div className="v">{e.value}</div>
+            </div>
+          ))}
         </div>
         <div className="hud-actions">
           <button className="btn yellow" onClick={togglePause}>
@@ -119,9 +129,12 @@ export default function GamePlayer({ game }: { game: Game }) {
       </div>
       <div className="crt">
         <div className="crt-screen">
-          {game.id === "asteroids" ? (
-            <AsteroidsCanvas
-              ref={asteroidsRef}
+          {engine ? (
+            <GameCanvas
+              ref={gameRef}
+              create={engine.create}
+              width={engine.width}
+              height={engine.height}
               onStateChange={setSnapshot}
               onGameOver={handleGameOver}
             />
@@ -215,7 +228,7 @@ export default function GamePlayer({ game }: { game: Game }) {
             ) : (
               <div className="saved-row">
                 <div className="toast-saved">▸ PUNTUACIÓN GUARDADA_</div>
-                {isAsteroids && (
+                {engine && (
                   <Link href={`/games/${game.id}`} className="ranking-link">
                     VER RANKING
                   </Link>

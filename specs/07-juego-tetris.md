@@ -1,6 +1,6 @@
 # SPEC 07 — Juego Tetris jugable con leaderboard en `/games/tetris/play`
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** SPEC 05, SPEC 06
 > **Fecha:** 2026-10-13
 > **Objetivo:** Portar a TypeScript el Tetris de `references/starter-games/03-tetris` como juego `tetris` con ficha en Supabase y guardado real de puntuación, creando el registro genérico de juegos que sustituye el caso especial de Asteroids.
@@ -149,36 +149,36 @@ Convenciones:
 
 ## Criterios de aceptación
 
-- [ ] `npm run lint` y `npm run build` terminan sin errores.
-- [ ] `app/components/AsteroidsCanvas.tsx` no existe; `GamePlayer` no contiene `game.id === "asteroids"` y `saveScore` no contiene `SAVEABLE_GAMES`.
-- [ ] `supabase/migrations/` tiene un único `.sql` nuevo: `<ts>_seed_tetris.sql`.
-- [ ] `execute_sql`: `games` tiene la fila `tetris`; `game_stats.best` de `tetris` = 0 antes de jugar.
-- [ ] `/games` lista TETRIS, también con el filtro `PUZZLE`.
-- [ ] `/games/tetris` muestra "Mejor global" 0 y ranking vacío sin errores.
-- [ ] `/games/tetris/play` muestra un `<canvas>` 800×600 lógico dentro del `.crt-screen`, sin errores ni warnings de `key` en consola.
-- [ ] El canvas muestra tablero 10×20 con grid, ghost piece y panel `SCORE`, `LINES`, `LEVEL`, `NEXT`, `CONTROLS` con los colores del original.
-- [ ] Solo aparecen las 7 piezas estándar; nunca la tuerca.
-- [ ] `←` `→` mueven, `↑` y `X` rotan (con wall kick junto a la pared), `↓` baja 1 fila y suma 1, `Space` suelta la pieza y suma 2 por celda; ninguna de esas teclas hace scroll.
-- [ ] Limpiar 1/2/3/4 líneas suma 100/300/500/800 × nivel; cada 10 líneas sube el nivel y la caída se acelera.
-- [ ] El `player-hud` muestra puntuación, nivel y líneas iguales al panel del canvas en todo momento y no muestra vidas.
-- [ ] `onStateChange` no se dispara en frames sin cambios.
-- [ ] `P` → overlay `EN PAUSA` y botón `REANUDAR`; `Escape` reanuda; pausado la pieza no cae.
-- [ ] Ocultar la pestaña pausa; al volver sigue pausado.
-- [ ] Una pieza que colisiona al aparecer abre el modal `FIN DEL JUEGO` con la puntuación final; el canvas muestra `GAME OVER` sin texto de reinicio.
-- [ ] `FIN` abre el modal con la puntuación actual; ninguna tecla reinicia en game over.
-- [ ] En el input, `ace_01` se ve `ACE_01`; espacio y `P` no afectan al juego.
-- [ ] Guardar `ACE_01` crea una fila en `scores` con `game_id = 'tetris'`, `player_name = 'ACE_01'`, `user_id` null.
-- [ ] `VER RANKING` lleva a `/games/tetris` con la fila (fecha `dd/mm/aaaa`) sin reiniciar el servidor; si la puntuación > 0, "Mejor global" se actualiza.
-- [ ] `/hall-of-fame` tiene pestaña Tetris con la fila.
-- [ ] Nombre `JOSÉ!` → `NOMBRE INVÁLIDO: 1–12 CARACTERES A-Z 0-9 _` y ninguna fila nueva.
-- [ ] `JUGAR DE NUEVO` empieza partida con puntuación 0, nivel 1, 0 líneas y tablero vacío; se puede volver a guardar.
-- [ ] Un solo loop en Strict Mode (la pieza cae a 1 fila/s en nivel 1).
-- [ ] `SALIR` y `VOLVER AL VAULT` no dejan loop ni listeners activos.
-- [ ] `saveScore` con `gameId: "caida"`, `score: -1`, `score: 1.5` o `score: 10000000` → `{ ok: false, error: "invalid" }` sin insertar.
-- [ ] Varias filas con el mismo nombre no producen warnings de `key`.
-- [ ] Regresión: `/games/asteroids/play` se juega, pausa y guarda como antes (HUD con vidas y nivel).
-- [ ] Ningún archivo de `references/` cambia.
-- [ ] `CLAUDE.md` lista Asteroids y Tetris como juegos jugables y describe el registro.
+- [x] `npm run lint` y `npm run build` terminan sin errores.
+- [x] `app/components/AsteroidsCanvas.tsx` no existe; `GamePlayer` no contiene `game.id === "asteroids"` y `saveScore` no contiene `SAVEABLE_GAMES`.
+- [x] `supabase/migrations/` tiene un único `.sql` nuevo: `<ts>_seed_tetris.sql`.
+- [x] `execute_sql`: `games` tiene la fila `tetris`; `game_stats.best` de `tetris` = 0 antes de jugar.
+- [x] `/games` lista TETRIS, también con el filtro `PUZZLE`.
+- [x] `/games/tetris` muestra "Mejor global" 0 y ranking vacío sin errores.
+- [x] `/games/tetris/play` muestra un `<canvas>` 800×600 lógico dentro del `.crt-screen`, sin errores ni warnings de `key` en consola.
+- [x] El canvas muestra tablero 10×20 con grid, ghost piece y panel `SCORE`, `LINES`, `LEVEL`, `NEXT`, `CONTROLS` con los colores del original.
+- [x] Solo aparecen las 7 piezas estándar; nunca la tuerca.
+- [x] `←` `→` mueven, `↑` y `X` rotan (con wall kick junto a la pared), `↓` baja 1 fila y suma 1, `Space` suelta la pieza y suma 2 por celda; ninguna de esas teclas hace scroll.
+- [x] Limpiar 1/2/3/4 líneas suma 100/300/500/800 × nivel; cada 10 líneas sube el nivel y la caída se acelera.
+- [x] El `player-hud` muestra puntuación, nivel y líneas iguales al panel del canvas en todo momento y no muestra vidas.
+- [ ] `onStateChange` no se dispara en frames sin cambios. _Solo revisado en código (`emitStateIfChanged`); sin medir con contador._
+- [x] `P` → overlay `EN PAUSA` y botón `REANUDAR`; `Escape` reanuda; pausado la pieza no cae.
+- [x] Ocultar la pestaña pausa; al volver sigue pausado.
+- [x] Una pieza que colisiona al aparecer abre el modal `FIN DEL JUEGO` con la puntuación final; el canvas muestra `GAME OVER` sin texto de reinicio.
+- [x] `FIN` abre el modal con la puntuación actual; ninguna tecla reinicia en game over.
+- [x] En el input, `ace_01` se ve `ACE_01`; espacio y `P` no afectan al juego.
+- [x] Guardar `ACE_01` crea una fila en `scores` con `game_id = 'tetris'`, `player_name = 'ACE_01'`, `user_id` null.
+- [x] `VER RANKING` lleva a `/games/tetris` con la fila (fecha `dd/mm/aaaa`) sin reiniciar el servidor; si la puntuación > 0, "Mejor global" se actualiza.
+- [x] `/hall-of-fame` tiene pestaña Tetris con la fila.
+- [x] Nombre `JOSÉ!` → `NOMBRE INVÁLIDO: 1–12 CARACTERES A-Z 0-9 _` y ninguna fila nueva.
+- [x] `JUGAR DE NUEVO` empieza partida con puntuación 0, nivel 1, 0 líneas y tablero vacío; se puede volver a guardar.
+- [x] Un solo loop en Strict Mode (la pieza cae a 1 fila/s en nivel 1).
+- [x] `SALIR` y `VOLVER AL VAULT` no dejan loop ni listeners activos.
+- [ ] `saveScore` con `gameId: "caida"`, `score: -1`, `score: 1.5` o `score: 10000000` → `{ ok: false, error: "invalid" }` sin insertar. _Solo revisado en código (`isPlayable`); no ejecutado._
+- [ ] Varias filas con el mismo nombre no producen warnings de `key`. _No verificable aún: Tetris tiene una sola fila._
+- [ ] Regresión: `/games/asteroids/play` se juega, pausa y guarda como antes (HUD con vidas y nivel). _Juega y pausa verificados; guardado no probado por decisión del usuario (no ensuciar el ranking de Asteroids)._
+- [x] Ningún archivo de `references/` cambia.
+- [x] `CLAUDE.md` lista Asteroids y Tetris como juegos jugables y describe el registro.
 
 ## Decisiones
 
@@ -202,6 +202,12 @@ Convenciones:
 - **No:** cambios de schema ni regenerar tipos. `scores`, `game_stats` y grants de SPEC 06 bastan.
 - **No:** puntuaciones demo. El ranking se llena con partidas reales.
 - **No:** sonido ni `public/games/tetris/`. El original no tiene assets.
+- **Sí (durante implementación):** en game over no se dibujan la pieza que no cabe ni su ghost. El original congelaba el frame previo; el resultado visual es equivalente.
+- **Sí (durante implementación):** `P`/`Escape` nunca llegan al juego, ni siquiera en game over (allí se ignoran).
+- **Sí (durante implementación):** game over con `ctx.filter = "blur(4px)"` sobre el propio canvas + velo `rgba(10,10,20,0.75)`. Replica el `backdrop-filter` del overlay original.
+- **Sí (durante implementación):** sin función `clearInput()` en el motor de Tetris. No hay mapa de teclas pulsadas que limpiar.
+- **Sí (durante implementación):** la migración se aplicó como `20261013054103_seed_tetris.sql`. `get_advisors` mostró, además de RLS, dos avisos previos sobre `public.rls_auto_enable()` (SECURITY DEFINER ejecutable por `anon`/`authenticated`); quedan para otro spec.
+- **No (decisión del usuario):** guardar una partida de prueba en Asteroids durante la verificación. Evita una fila falsa en su ranking.
 
 ## Riesgos
 

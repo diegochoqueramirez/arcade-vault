@@ -15,23 +15,13 @@ import {
   dist,
   rand,
 } from "./entities";
-export interface AsteroidsSnapshot {
+import type { GameCallbacks, GameEngine } from "../types";
+// Asteroids siempre informa vidas y nivel.
+interface AsteroidsSnapshot {
   score: number;
   lives: number; // 0..3
   level: number; // >= 1
   paused: boolean;
-}
-export interface AsteroidsCallbacks {
-  onStateChange: (snapshot: AsteroidsSnapshot) => void; // solo cuando algún campo cambia
-  onGameOver: (finalScore: number) => void; // una vez por partida
-}
-export interface AsteroidsGame {
-  pause(): void;
-  resume(): void;
-  togglePause(): void;
-  end(): void; // fuerza game over → dispara onGameOver
-  restart(): void; // nueva partida → dispara onStateChange
-  destroy(): void; // cancela rAF y quita todos los listeners
 }
 type Status = "playing" | "dead" | "gameover";
 // Teclas cuyo comportamiento por defecto (scroll) se bloquea.
@@ -51,8 +41,8 @@ function isEditable(target: EventTarget | null) {
 }
 export function createAsteroidsGame(
   canvas: HTMLCanvasElement,
-  callbacks: AsteroidsCallbacks,
-): AsteroidsGame {
+  callbacks: GameCallbacks,
+): GameEngine {
   const maybeCtx = canvas.getContext("2d");
   if (!maybeCtx) throw new Error("Canvas 2D no disponible");
   const ctx: CanvasRenderingContext2D = maybeCtx;
