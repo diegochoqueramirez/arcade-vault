@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Game } from "@/app/data/games";
+import type { Game } from "@/app/data/catalog";
 import type { RecentScore, TopPlayer } from "@/app/data/activity";
 import FeatureIcon, { type FeatureIconKind } from "./FeatureIcon";
 import FloatingSilhouettes from "./FloatingSilhouettes";

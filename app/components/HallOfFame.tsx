@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { Game } from "@/app/data/games";
-import type { ScoreEntry } from "@/app/data/scores";
+import type { Game } from "@/app/data/catalog";
+import type { ScoreEntry } from "@/app/data/catalog";
 
 const TOP_CLASS = [" top1", " top2", " top3"];
 
@@ -65,7 +65,7 @@ export default function HallOfFame({ games, leaderboards }: HallOfFameProps) {
         </div>
         {rows.map((r, i) => (
           // key con la pestaña para que la animación escalonada se repita al cambiar de juego
-          <div key={`${tab}-${r.rank}`} className={"tr" + (TOP_CLASS[i] ?? "")} style={{ animationDelay: `${i * 50}ms` }}>
+          <div key={r.id} className={"tr" + (TOP_CLASS[i] ?? "")} style={{ animationDelay: `${i * 50}ms` }}>
             <div className="rk">#{String(r.rank).padStart(2, "0")}</div>
             <div className="pl">{r.name}</div>
             <div className="sc">{r.score.toLocaleString("es-ES")}</div>

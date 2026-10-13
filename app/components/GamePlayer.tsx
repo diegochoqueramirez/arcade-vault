@@ -1,10 +1,12 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
+import { saveScore, type SaveScoreResult } from "@/app/actions/scores";
 import AsteroidsCanvas, {
   type AsteroidsController,
 } from "@/app/components/AsteroidsCanvas";
-import type { Game } from "@/app/data/games";
+import type { Game } from "@/app/data/catalog";
 import type { AsteroidsSnapshot } from "@/app/lib/games/asteroids/engine";
 // Placeholder visual: HUD con valores fijos, sin lógica de juego ni persistencia.
 const SCORE = 0;
@@ -16,6 +18,11 @@ export default function GamePlayer({ game }: { game: Game }) {
   const [over, setOver] = useState(false);
   const [saved, setSaved] = useState(false);
   const [name, setName] = useState("INVITADO");
+  type SaveError = Extract<SaveScoreResult, { ok: false }>["error"];
+  const [saveError, setSaveError] = useState<SaveError | null>(null);
+  // Se incrementa en cada error para reiniciar la animación del mensaje.
+  const [errorTick, setErrorTick] = useState(0);
+  const [saving, startSaving] = useTransition();
   // Solo asteroids tiene motor real; el resto conserva el HUD fijo del placeholder.
   const isAsteroids = game.id === "asteroids";
   const [snapshot, setSnapshot] = useState<AsteroidsSnapshot>({
@@ -49,6 +56,28 @@ export default function GamePlayer({ game }: { game: Game }) {
     setPlaceholderPaused(false);
     setOver(false);
     setSaved(false);
+    setSaveError(null);
+  };
+  // Solo asteroids persiste en Supabase; el placeholder conserva el guardado visual.
+  const save = () => {
+    if (!isAsteroids) {
+      setSaved(true);
+      return;
+    }
+    startSaving(async () => {
+      const result = await saveScore({
+        gameId: game.id,
+        playerName: name,
+        score: finalScore,
+      });
+      if (result.ok) {
+        setSaveError(null);
+        setSaved(true);
+      } else {
+        setSaveError(result.error);
+        setErrorTick((t) => t + 1);
+      }
+    });
   };
   return (
     <div className="av-player fade-in">
@@ -142,20 +171,56 @@ export default function GamePlayer({ game }: { game: Game }) {
             <div className="final-label">PUNTUACIÓN FINAL</div>
             <div className="final">{finalScore.toLocaleString("es-ES")}</div>
             {!saved ? (
-              <div className="input-row">
-                <input
-                  value={name}
-                  onChange={(e) =>
-                    setName(e.target.value.toUpperCase().slice(0, 10))
-                  }
-                  placeholder="TUS INICIALES"
-                />
-                <button className="btn yellow" onClick={() => setSaved(true)}>
-                  GUARDAR PUNTUACIÓN
-                </button>
-              </div>
+              <>
+                <div className="input-row">
+                  <input
+                    value={name}
+                    maxLength={12}
+                    disabled={saving}
+                    aria-invalid={saveError === "invalid"}
+                    aria-describedby={saveError ? "save-error" : undefined}
+                    className={
+                      saveError === "invalid" ? "is-invalid" : undefined
+                    }
+                    onChange={(e) => {
+                      setName(e.target.value.toUpperCase().slice(0, 12));
+                      if (saveError === "invalid") setSaveError(null);
+                    }}
+                    placeholder="TUS INICIALES"
+                  />
+                  <button
+                    className={"btn yellow" + (saving ? " is-saving" : "")}
+                    onClick={save}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <>
+                        GUARDANDO<span className="saving-dots">...</span>
+                      </>
+                    ) : (
+                      "GUARDAR PUNTUACIÓN"
+                    )}
+                  </button>
+                </div>
+                <div className="save-error-slot" aria-live="polite">
+                  {saveError && (
+                    <p key={errorTick} id="save-error" className="save-error">
+                      {saveError === "invalid"
+                        ? "NOMBRE INVÁLIDO: 1–12 CARACTERES A-Z 0-9 _"
+                        : "NO SE PUDO GUARDAR. REINTENTA."}
+                    </p>
+                  )}
+                </div>
+              </>
             ) : (
-              <div className="toast-saved">▸ PUNTUACIÓN GUARDADA_</div>
+              <div className="saved-row">
+                <div className="toast-saved">▸ PUNTUACIÓN GUARDADA_</div>
+                {isAsteroids && (
+                  <Link href={`/games/${game.id}`} className="ranking-link">
+                    VER RANKING
+                  </Link>
+                )}
+              </div>
             )}
             <div className="actions">
               <button className="btn" onClick={restart}>

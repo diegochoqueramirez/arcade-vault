@@ -1,11 +1,14 @@
-export interface ScoreEntry {
+// Datos de referencia (mock) de los leaderboards placeholder. La app ya no importa este archivo:
+// los leaderboards salen de Supabase (catalog.server.ts). Se conserva para insertar estas
+// puntuaciones en la base de datos en un spec futuro.
+export interface MockScore {
   rank: number;
   name: string;
   score: number;
   date: string;
 }
 
-const LEADERBOARDS: Record<string, ScoreEntry[]> = {
+export const LEADERBOARDS: Record<string, MockScore[]> = {
   "bloque-buster": [
     { rank: 1, name: "NEONFOX", score: 28450, date: "14/09/2026" },
     { rank: 2, name: "PX_KAI", score: 27120, date: "02/08/2026" },
@@ -119,8 +122,3 @@ const LEADERBOARDS: Record<string, ScoreEntry[]> = {
     { rank: 12, name: "SCANLINE", score: 8, date: "11/07/2026" },
   ],
 };
-
-export async function getLeaderboard(gameId: string, limit?: number): Promise<ScoreEntry[]> {
-  const rows = LEADERBOARDS[gameId] ?? [];
-  return limit === undefined ? rows : rows.slice(0, limit);
-}

@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import Leaderboard from "@/app/components/Leaderboard";
 import ScreenLoading from "@/app/components/ScreenLoading";
-import { getGameById, getGames } from "@/app/data/games";
-import { getLeaderboard } from "@/app/data/scores";
+import { getGameById, getGames, getLeaderboard } from "@/app/data/catalog.server";
 
 export async function generateStaticParams() {
   const games = await getGames();

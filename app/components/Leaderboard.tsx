@@ -1,4 +1,4 @@
-import type { ScoreEntry } from "@/app/data/scores";
+import type { ScoreEntry } from "@/app/data/catalog";
 
 const TOP_CLASS = [" top1", " top2", " top3"];
 
@@ -7,7 +7,7 @@ export default function Leaderboard({ scores }: { scores: ScoreEntry[] }) {
     <div className="leaderboard">
       <h3>MEJORES PUNTUACIONES</h3>
       {scores.map((r, i) => (
-        <div key={r.name} className={"lb-row" + (TOP_CLASS[i] ?? "")}>
+        <div key={r.id} className={"lb-row" + (TOP_CLASS[i] ?? "")}>
           <div className="rk">#{String(r.rank).padStart(2, "0")}</div>
           <div className="pl">
             {r.name}
