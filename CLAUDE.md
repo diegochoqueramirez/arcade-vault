@@ -25,6 +25,13 @@ UI language is Spanish (`<html lang="es">`); code/identifiers in English.
 
 Usa siempre /frontend-design para diseñar la interfaz de usuario
 
+## Agents
+
+Subagents in `.claude/agents/` (one `.md` each, Spanish prompt).
+
+- `game-planner` — plans/decides which new game fits the platform. Reads `references/implemented-games.md`, starter games, source assets, game contract (`app/lib/games/types.ts`), `CATEGORIES`; scores candidates 1–5 on 6 criteria (/30): retro aesthetic, keyboard + canvas, single numeric score for leaderboard, category diversity, effort, competitive replayability. Outputs 1–3 candidates + recommendation + `implemented-games.md`-style row + next step (`/spec` → `/spec-impl`). No code/specs. Tools: Read, Glob, Grep, Write, Edit; model opus.
+- Memory: `references/game-suggestions-todo.md` (git-versioned, shared by team) — read before suggesting (no repeats), updated after every run. Sections: Pendientes (`- [ ]`, sorted by score), Aceptados, Descartados (with reason + date), Implementados (`- [x]`). Only file the agent may modify. When a game ships, its id moves to Implementados.
+
 ## Stack / architecture
 
 - Next.js 16.4 (App Router, `app/`), React 19.3, TypeScript strict. Path alias `@/*` → repo root.
@@ -61,6 +68,7 @@ Usa siempre /frontend-design para diseñar la interfaz de usuario
 - `app/lib/games/registry.ts` (client): `GAME_ENGINES` id → `{ create, width, height }`; `GamePlayer` mounts `GameCanvas` when the id is registered, placeholder otherwise.
 - `app/lib/games/playable.ts` (no deps): `PLAYABLE_GAMES` + `isPlayable()`, used by `saveScore`.
 - Adding a game = engine + `GAME_ENGINES` entry + id in `PLAYABLE_GAMES` + seed migration in `games` + row in `references/implemented-games.md` (see `/nuevo-juego` skill in `.claude/skills/nuevo-juego/SKILL.md`).
+- Choosing the next game: subagent `game-planner` (see Agents).
 
 ## Supabase
 
