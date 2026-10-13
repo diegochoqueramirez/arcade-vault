@@ -31,6 +31,7 @@ Subagents in `.claude/agents/` (one `.md` each, Spanish prompt).
 
 - `game-planner` — plans/decides which new game fits the platform. Reads `references/implemented-games.md`, starter games, source assets, game contract (`app/lib/games/types.ts`), `CATEGORIES`; scores candidates 1–5 on 6 criteria (/30): retro aesthetic, keyboard + canvas, single numeric score for leaderboard, category diversity, effort, competitive replayability. Outputs 1–3 candidates + recommendation + `implemented-games.md`-style row + next step (`/spec` → `/spec-impl`). No code/specs. Tools: Read, Glob, Grep, Write, Edit; model opus.
 - Memory: `references/game-suggestions-todo.md` (git-versioned, shared by team) — read before suggesting (no repeats), updated after every run. Sections: Pendientes (`- [ ]`, sorted by score), Aceptados, Descartados (with reason + date), Implementados (`- [x]`). Only file the agent may modify. When a game ships, its id moves to Implementados.
+- `game-jam` — user provides the game to implement (agent never picks it); validates input (missing game, already in `specs/game-jam/`, fails keyboard/canvas/score filter → stops without writing); creates `specs/game-jam/<game-id>/` with ≥2 complete phase specs (`01-nucleo-jugable.md`, `02-progresion.md`, optional `03-pulido.md`; state `Borrador`, same format as SPEC 07–09). Only knows existing games via `specs/game-jam/` (no repeated id or game); ignores platform games; doesn't read/write `game-planner`'s todo; only writes inside its folder. Tools: Read, Glob, Grep, Write; model opus.
 
 ## Stack / architecture
 
