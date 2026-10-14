@@ -10,7 +10,7 @@ Arcade Vault: online platform to play games and compete for highest score. Catal
 
 Workflow is Spec Driven Design via `/spec` and `/spec-impl` skills from https://github.com/Klerith/fernando-skills (install: `npx skills@latest add Klerith/fernando-skills`). Follow those skills' conventions when planning/implementing features.
 
-Specs in `specs/NN-name.md` (Spanish, header `> **Estado:**`), all `Implementado`: 01 MVP visual screens, 02 landing, 03 about + contact, 04 Supabase base, 05 Asteroids, 06 `games`/`scores` tables + leaderboard, 07 Tetris (+ generic registry), 08 Arkanoid, 09 Snake. One branch `spec-NN-<slug>` + PR per spec.
+Specs in `specs/NN-name.md` (Spanish, header `> **Estado:**`), all `Implementado`: 01 MVP visual screens, 02 landing, 03 about + contact, 04 Supabase base, 05 Asteroids, 06 `games`/`scores` tables + leaderboard, 07 Tetris (+ generic registry), 08 Arkanoid, 09 Snake, 10 Frogger performance (React renders). One branch `spec-NN-<slug>` + PR per spec.
 
 UI language is Spanish (`<html lang="es">`); code/identifiers in English.
 
@@ -71,6 +71,9 @@ Subagents in `.claude/agents/` (one `.md` each, Spanish prompt).
 - Assets (sprites, sounds) copied to `public/games/<id>/` and loaded by the factory from `/games/<id>/...` (Arkanoid: sprites + sounds; Snake: `fruits.png` only).
 - Contract in `app/lib/games/types.ts` (`GameSnapshot`, `GameCallbacks`, `GameEngine`, `GameFactory`). Snapshot: `score`, `paused`, optional `lives`/`level` (HUD hides them when undefined), `extra` label/value pairs.
 - `app/lib/games/registry.ts` (client): `GAME_ENGINES` id → `{ create, width, height }`; `GamePlayer` mounts `GameCanvas` when the id is registered, placeholder otherwise.
+- Snapshot → React (SPEC 10): engines must call `onStateChange` only when a snapshot field changes (never per frame/second; Frogger has no `extra`, time lives only in its canvas bar). `GamePlayer` keeps the snapshot in an external store (`app/lib/games/snapshot-store.ts`, created once via lazy `useState` without setter) passed as `onStateChange={store.set}`; only `PlayerHud`, `PauseButton`, `PauseOverlay` subscribe (`useSyncExternalStore`), so `GamePlayer`/`GameCanvas` don’t re-render on snapshot changes. Keep `useState` minimal (`finalScore: number | null` = modal open + score). `react-hooks/refs` (lint) forbids reading `ref.current` during render.
+- Dev-only counter `window.__avStateChanges` (incremented in `GameCanvas` per `onStateChange`; absent in production) for render audits with Playwright MCP. Playwright Chromium here is capped at 50 Hz.
+- Frogger paints its static background once per engine into an offscreen canvas (`renderBackground`) and copies it with `drawImage` each frame. Glow shapes (cars, trucks, frog, HUD text) are cached sprites (`sprite(key, w, h, paint)` + `PAD` margin; HUD text re-rendered only when score/level change): 0 `shadowBlur` calls per frame. Per-frame `shadowBlur` was the cause of `neon` stutter (24 calls/frame); Asteroids, Arkanoid and Snake still use it — apply the same pattern there (see SPEC 10 "Resumen de hallazgos"). Measure perf per skin and count `shadowBlur > 0` draw calls, not just FPS.
 - `app/lib/games/playable.ts` (no deps): `PLAYABLE_GAMES` + `isPlayable()`, used by `saveScore`.
 - Adding a game = engine + `GAME_ENGINES` entry + id in `PLAYABLE_GAMES` + seed migration in `games` + row in `references/implemented-games.md` (see `/nuevo-juego` skill in `.claude/skills/nuevo-juego/SKILL.md`).
 - Choosing the next game: subagent `game-planner` (see Agents).

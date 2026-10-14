@@ -6,6 +6,12 @@ import type {
   GameFactory,
   GameOptions,
 } from "@/app/lib/games/types";
+// Contador de notificaciones a React, solo en desarrollo (medición SPEC 10).
+declare global {
+  interface Window {
+    __avStateChanges?: number;
+  }
+}
 // Controlador expuesto al padre; destroy() lo gestiona solo este componente.
 export type GameController = Omit<GameEngine, "destroy">;
 interface Props extends GameCallbacks {
@@ -48,10 +54,18 @@ export default function GameCanvas({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const game = createRef.current(canvas, {
-      onStateChange: (s) => callbacksRef.current.onStateChange(s),
-      onGameOver: (score) => callbacksRef.current.onGameOver(score),
-    }, optionsRef.current);
+    const game = createRef.current(
+      canvas,
+      {
+        onStateChange: (s) => {
+          if (process.env.NODE_ENV !== "production")
+            window.__avStateChanges = (window.__avStateChanges ?? 0) + 1;
+          callbacksRef.current.onStateChange(s);
+        },
+        onGameOver: (score) => callbacksRef.current.onGameOver(score),
+      },
+      optionsRef.current,
+    );
     gameRef.current = game;
     return () => {
       game.destroy();
