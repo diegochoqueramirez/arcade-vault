@@ -25,6 +25,8 @@ UI language is Spanish (`<html lang="es">`); code/identifiers in English.
 
 Usa siempre /frontend-design para diseñar la interfaz de usuario
 
+- `/spec-impl-game <NN>` (`.claude/skills/spec-impl-game/SKILL.md`): runs `/spec-impl` phases verbatim (reads `~/.claude/skills/spec-impl/SKILL.md`), then chains agents sequentially on the spec's game: `skin-designer` → `mobile-porter` → lint + build. Only `specs/NN-*.md`.
+
 ## Agents
 
 Subagents in `.claude/agents/` (one `.md` each, Spanish prompt).

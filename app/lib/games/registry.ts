@@ -4,6 +4,9 @@ import { SKINS as ARKANOID_SKINS } from "./arkanoid/skins";
 import { H as ASTEROIDS_H, W as ASTEROIDS_W } from "./asteroids/constants";
 import { createAsteroidsGame } from "./asteroids/engine";
 import { SKINS as ASTEROIDS_SKINS } from "./asteroids/skins";
+import { H as FROGGER_H, W as FROGGER_W } from "./frogger/constants";
+import { createFroggerGame } from "./frogger/engine";
+import { SKINS as FROGGER_SKINS } from "./frogger/skins";
 import { H as SNAKE_H, W as SNAKE_W } from "./snake/constants";
 import { createSnakeGame } from "./snake/engine";
 import { SKINS as SNAKE_SKINS } from "./snake/skins";
@@ -43,5 +46,11 @@ export const GAME_ENGINES: Record<
     width: SNAKE_W,
     height: SNAKE_H,
     skins: SNAKE_SKINS,
+  },
+  frogger: {
+    create: createFroggerGame,
+    width: FROGGER_W,
+    height: FROGGER_H,
+    skins: FROGGER_SKINS,
   },
 };

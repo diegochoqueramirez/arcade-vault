@@ -11,6 +11,7 @@
 | tetris    | ❌      | ❌   | ❌    | —     | `COLORS` + `THEME` en `constants.ts`           |
 | arkanoid  | ✅      | ✅   | ✅    | 2026-10-13 | `skins.ts`; sprites tintados con `ctx.filter` vía `drawSkinnedSprite` (save/restore; classic `none` sin tocar ctx); neon `saturate(1.6) brightness(1.4)` + glow 12 solo paleta/bola; retro `sepia(0.4) saturate(0.8) brightness(1.2)` + scanlines; override `blockFilter.gray` (más brillo) en neon/retro |
 | snake     | ✅      | ✅   | ✅    | 2026-10-13 | `COLORS` → `SKINS.classic`; fruta sprite con `ctx.filter` (classic `none`, neon `saturate(1.6) contrast(1.15)`, retro `sepia(1) saturate(1.8) brightness(1.1)`); glow solo neon (segmentos + HUD); retro segmentos casi cuadrados (radius 2) |
+| frogger   | ✅      | ✅   | ✅    | 2026-10-13 | `COLORS` → `SKINS.classic` (eliminado de `constants.ts`); sin sprites; glow solo neon (rana/coches/camiones 12, HUD/overlay 6) vía `setGlow`/`clearGlow`; tortugas neon magenta y retro teal para distinguirlas de la rana |
 
 ## Infraestructura común
 
@@ -47,6 +48,16 @@ Contraste de sprites medido con el color medio de cada recorte (sharp) tras apli
 | neon | `#07070f` | HUD `#00f5ff`, GAME OVER `#ff2d8a`, glow paleta cyan / bola `#f5ff00` | 5.73 (GAME OVER sobre velo) | 3.96 (bloque magenta) · gris 5.24 | Glow 12 paleta/bola, 6 HUD; bloques sin glow |
 | retro | `#1a1208` | CRT ámbar: HUD/overlay `#ffb000`, sprites sepia parcial (conservan tono) | 10.11 (HUD) | 3.06 (bloque magenta) · gris 4.66 | Sin glow; scanlines `rgba(0,0,0,0.18)` 1px/4px |
 
+### frogger
+
+Contraste de entidades frente a su zona (vehículos/carretera, troncos-tortugas/río, rana/todas las zonas); HUD frente a fila de metas; barra de tiempo frente a zona segura; overlay frente a velo 0.6.
+
+| Skin | Fondo | Principal | HUD min | Entidades min | Notas |
+| ---- | ----- | --------- | ------- | ------------- | ----- |
+| classic | carretera `#0a0a0a`, río `#06204a`, segura `#0d3a14`, metas `#2f7a2f` | rana `#39ff6a`, HUD `#fff` | 5.32 (texto HUD) · vidas 3.98 · tiempo bajo 3.64 | 2.72 (tronco; heredado del original, sin cambio) · resto ≥5.54 | Colores originales idénticos |
+| neon | carretera `#07070f`, río `#050b1a`, segura `#0d0614`, metas `#0d0d1a` | rana `#00ff88`, coches `#ff2d8a`/`#f5ff00`/`#00f5ff`, camión `#b06bff`, troncos `#ff8a3d`, tortugas `#ff2d8a`, HUD `#00f5ff` | 5.81 (GAME OVER sobre velo) | 5.61 (tortuga) | Glow 12 rana/vehículos, 6 HUD; reseteado tras dibujar |
+| retro | carretera `#16120c`, río `#0f1a1c`, segura `#1a2010`, metas `#2a3418` | 8 bits apagada: rana `#c8ec80`, tortugas `#5fb0a0`, HUD crema `#f0e6c8` | 10.52 (texto HUD) · tiempo bajo 4.36 | 4.41 (tronco) | Sin glow; rana/tortuga 1.92 por luminancia pero tonos distintos (lima vs teal) |
+
 ## Registro
 
 - 2026-10-13 — Archivo creado; ningún juego con skins.
@@ -54,3 +65,4 @@ Contraste de sprites medido con el color medio de cada recorte (sharp) tras apli
 - 2026-10-13 — snake: classic/neon/retro implementados (`skins.ts`, motor sin colores hardcodeados, fruta tintada con `ctx.filter`); infraestructura común reutilizada.
 - 2026-10-13 — arkanoid: classic/neon/retro implementados (`skins.ts`, sprites tintados con `ctx.filter`, sin colores hardcodeados en motor); infraestructura común reutilizada.
 - 2026-10-13 — infraestructura: eliminado `skin-store.ts` (localStorage); el skin vive en un `useState` de `GamePlayer`, sin persistencia (cada visita arranca en classic).
+- 2026-10-13 — frogger: classic/neon/retro implementados (`skins.ts`, factory acepta `options`, `COLORS` movido a `SKINS.classic`, registry con `skins`); infraestructura común reutilizada.
