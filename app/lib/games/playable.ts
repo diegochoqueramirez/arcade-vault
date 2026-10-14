@@ -4,6 +4,7 @@ export const PLAYABLE_GAMES = [
   "tetris",
   "arkanoid",
   "snake",
+  "frogger",
 ] as const;
 export type PlayableGameId = (typeof PLAYABLE_GAMES)[number];
 export function isPlayable(id: unknown): id is PlayableGameId {

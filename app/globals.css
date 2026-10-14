@@ -465,6 +465,26 @@ a { color: inherit; text-decoration: none; }
   filter: drop-shadow(0 0 6px rgba(0,255,136,0.6));
 }
 
+/* Frogger: río arriba (azul + troncos), carretera abajo (líneas), rana verde en el centro */
+.cover-frogger {
+  background-image:
+    linear-gradient(180deg, #001a3a 0 45%, #0a2a10 45% 55%, #0a0a12 55% 100%);
+}
+.cover-frogger::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 50% 50%, var(--green) 0 10px, transparent 11px),
+    linear-gradient(90deg, #8a5a2b 0 100%),
+    linear-gradient(90deg, #8a5a2b 0 100%),
+    repeating-linear-gradient(90deg, var(--yellow) 0 18px, transparent 18px 36px),
+    linear-gradient(90deg, var(--magenta) 0 100%);
+  background-position: 0 0, 10% 18%, 70% 32%, 0 78%, 30% 66%;
+  background-size: auto, 90px 12px, 110px 12px, 100% 3px, 44px 16px;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 0 6px rgba(0,255,136,0.5));
+}
+
 .cover-glot { background: radial-gradient(circle at 50% 50%, #1a002a, #0a0a18); }
 .cover-glot::after {
   content: "";

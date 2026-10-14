@@ -19,6 +19,9 @@ const PLACEHOLDER: GameSnapshot = {
   level: 1,
   paused: false,
 };
+// Último nombre guardado: pre-rellena el modal de game over en la siguiente partida.
+const PLAYER_NAME_KEY = "av_player_name";
+const PLAYER_NAME_RE = /^[A-Z0-9_]{1,12}$/;
 export default function GamePlayer({ game }: { game: Game }) {
   const router = useRouter();
   const [placeholderPaused, setPlaceholderPaused] = useState(false);
@@ -53,6 +56,11 @@ export default function GamePlayer({ game }: { game: Game }) {
   const [finalScore, setFinalScore] = useState(PLACEHOLDER.score);
   const handleGameOver = (s: number) => {
     setFinalScore(s);
+    // Pre-rellena el modal con el último nombre guardado (si es válido).
+    try {
+      const stored = localStorage.getItem(PLAYER_NAME_KEY);
+      if (stored && PLAYER_NAME_RE.test(stored)) setName(stored);
+    } catch {}
     setOver(true);
   };
   // Con motor, end() dispara onGameOver, que abre el modal.
@@ -82,6 +90,9 @@ export default function GamePlayer({ game }: { game: Game }) {
       if (result.ok) {
         setSaveError(null);
         setSaved(true);
+        try {
+          localStorage.setItem(PLAYER_NAME_KEY, name);
+        } catch {}
       } else {
         setSaveError(result.error);
         setErrorTick((t) => t + 1);
