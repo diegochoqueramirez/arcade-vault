@@ -15,11 +15,19 @@ import {
   POINTS_PER_FRUIT,
   ROWS,
   START_CELLS,
+  type Sprite,
   START_DIR,
   STEP_MS_PER_LEVEL,
   W,
 } from "./constants";
-import { Fruit, Snake, sameCell } from "./entities";
+import {
+  FRUIT_SIZE,
+  Fruit,
+  SEGMENT_SIZE,
+  Snake,
+  sameCell,
+  spriteBox,
+} from "./entities";
 import { SKINS } from "./skins";
 import {
   DEFAULT_SKIN,
@@ -176,31 +184,107 @@ export function createSnakeGame(
     }
   }
   // ── Draw ────────────────────────────────────────────────────────────────────
-  function drawBoard() {
-    ctx.fillStyle = palette.background;
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = palette.checker;
+  // Lienzo offscreen; con `pad`, origen trasladado para que la forma empiece en (0, 0)
+  // y quede margen alrededor para el glow.
+  function makeCanvas(w: number, h: number, pad = 0) {
+    const s = document.createElement("canvas");
+    s.width = Math.ceil(w) + pad * 2;
+    s.height = Math.ceil(h) + pad * 2;
+    const c = s.getContext("2d");
+    if (!c) throw new Error("Canvas 2D no disponible");
+    c.translate(pad, pad);
+    return { s, c };
+  }
+  // Tablero estático (fondo + casillas alternas) pintado una vez por motor con la paleta
+  // del skin; cada frame solo se copia (SPEC 10).
+  const board = renderBoard();
+  function renderBoard() {
+    const { s, c } = makeCanvas(W, H);
+    c.fillStyle = palette.background;
+    c.fillRect(0, 0, W, H);
+    c.fillStyle = palette.checker;
     for (let row = 0; row < ROWS; row++)
       for (let col = row % 2; col < COLS; col += 2)
-        ctx.fillRect(col * CELL, HUD_H + row * CELL, CELL, CELL);
+        c.fillRect(col * CELL, HUD_H + row * CELL, CELL, CELL);
+    return s;
+  }
+  function drawBoard() {
+    ctx.drawImage(board, 0, 0);
+  }
+  // Sprites pre-renderizados (SPEC 10): segmentos con glow y texto del HUD se pintan una
+  // vez en canvas offscreen y se copian con drawImage; 0 shadowBlur por frame.
+  // Margen alrededor de la forma para que el glow no se recorte.
+  const PAD = Math.ceil(Math.max(palette.glow, palette.hudGlow) * 1.5) + 2;
+  const segments = new Map<boolean, HTMLCanvasElement>();
+  function segment(isHead: boolean) {
+    let s = segments.get(isHead);
+    if (!s) {
+      const made = makeCanvas(SEGMENT_SIZE, SEGMENT_SIZE, PAD);
+      const c = made.c;
+      const color = isHead ? palette.head : palette.body;
+      c.fillStyle = color;
+      c.shadowColor = color;
+      c.shadowBlur = palette.glow;
+      c.beginPath();
+      c.roundRect(0, 0, SEGMENT_SIZE, SEGMENT_SIZE, palette.segmentRadius);
+      c.fill();
+      c.shadowBlur = 0;
+      s = made.s;
+      segments.set(isHead, s);
+    }
+    return s;
+  }
+  // Fruta escalada y tintada con el filtro de la skin una sola vez por recorte. El sprite
+  // incluye la fracción subpíxel de la caja (igual en toda celda: CELL es entero), así que
+  // copiarlo en (floor(x), floor(y)) reproduce el dibujo original.
+  const fruitSprites = new Map<Sprite, HTMLCanvasElement>();
+  function fruitSprite(sp: Sprite) {
+    let s = fruitSprites.get(sp);
+    if (!s) {
+      const { x, y, w, h } = spriteBox(sp, { col: 0, row: 0 }, FRUIT_SIZE);
+      const fx = x - Math.floor(x);
+      const fy = y - Math.floor(y);
+      const made = makeCanvas(fx + w, fy + h);
+      made.c.filter = palette.fruitFilter;
+      made.c.drawImage(sheet, sp.sx, sp.sy, sp.sw, sp.sh, fx, fy, w, h);
+      made.c.filter = "none";
+      s = made.s;
+      fruitSprites.set(sp, s);
+    }
+    return s;
+  }
+  // HUD (barra, línea y texto con glow) en un canvas fuera del Map: se repinta solo
+  // cuando cambian score, nivel o longitud.
+  let hudKey = "";
+  let hudSprite: HTMLCanvasElement | null = null;
+  function hudImage() {
+    const key = `${score}|${level}|${snake.length}`;
+    if (!hudSprite || key !== hudKey) {
+      const { s, c } = makeCanvas(W, HUD_H, PAD);
+      c.fillStyle = palette.hudBar;
+      c.fillRect(0, 0, W, HUD_H);
+      c.fillStyle = palette.hudLine;
+      c.fillRect(0, HUD_H - 1, W, 1);
+      c.fillStyle = palette.hudText;
+      c.shadowColor = palette.hudText;
+      c.shadowBlur = palette.hudGlow;
+      c.font = "bold 18px monospace";
+      c.textBaseline = "middle";
+      c.textAlign = "left";
+      c.fillText(`Score: ${score}`, 10, HUD_H / 2);
+      c.textAlign = "center";
+      c.fillText(`Nivel: ${level}`, W / 2, HUD_H / 2);
+      c.textAlign = "right";
+      c.fillText(`Longitud: ${snake.length}`, W - 10, HUD_H / 2);
+      c.shadowBlur = 0;
+      hudKey = key;
+      hudSprite = s;
+    }
+    return hudSprite;
   }
   function drawHUD() {
-    ctx.fillStyle = palette.hudBar;
-    ctx.fillRect(0, 0, W, HUD_H);
-    ctx.fillStyle = palette.hudLine;
-    ctx.fillRect(0, HUD_H - 1, W, 1);
-    ctx.fillStyle = palette.hudText;
-    ctx.shadowColor = palette.hudText;
-    ctx.shadowBlur = palette.hudGlow;
-    ctx.font = "bold 18px monospace";
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "left";
-    ctx.fillText(`Score: ${score}`, 10, HUD_H / 2);
-    ctx.textAlign = "center";
-    ctx.fillText(`Nivel: ${level}`, W / 2, HUD_H / 2);
-    ctx.textAlign = "right";
-    ctx.fillText(`Longitud: ${snake.length}`, W - 10, HUD_H / 2);
-    ctx.shadowBlur = 0;
+    // El sprite empieza en (-PAD, -PAD): la barra queda en (0, 0) como antes.
+    ctx.drawImage(hudImage(), -PAD, -PAD);
   }
   function drawOverlay(message: string) {
     ctx.fillStyle = palette.overlayBg;
@@ -217,8 +301,8 @@ export function createSnakeGame(
   function draw() {
     drawBoard();
     if (!sheetReady) return;
-    fruit?.draw(ctx, sheet, palette);
-    snake.draw(ctx, dir, palette);
+    if (fruit) fruit.draw(ctx, fruitSprite(fruit.sprite));
+    snake.draw(ctx, dir, palette, segment, PAD);
     drawHUD();
     if (status === "gameover") drawOverlay("GAME OVER");
     if (status === "win") drawOverlay("¡TABLERO COMPLETO!");

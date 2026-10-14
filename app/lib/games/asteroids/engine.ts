@@ -18,6 +18,7 @@ import {
   setGlow,
 } from "./entities";
 import { SKINS } from "./skins";
+import { createSprites } from "./sprites";
 import {
   DEFAULT_SKIN,
   type GameCallbacks,
@@ -235,40 +236,61 @@ export function createAsteroidsGame(
     if (asteroids.length === 0) nextLevel();
   }
   // ── Draw ────────────────────────────────────────────────────────────────────
+  // Caché de sprites con glow (SPEC 10): vive en este closure y se libera con el motor.
+  const sprites = createSprites(palette);
   function drawLifeIcon(x: number, y: number) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(-Math.PI / 2);
-    ctx.strokeStyle = palette.lifeIcon;
-    setGlow(ctx, palette.lifeIcon, palette.hudGlow);
-    ctx.lineWidth = 1.2;
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    ctx.moveTo(9, 0);
-    ctx.lineTo(-6, -5);
-    ctx.lineTo(-3, 0);
-    ctx.lineTo(-6, 5);
-    ctx.closePath();
-    ctx.stroke();
-    clearGlow(ctx);
-    ctx.restore();
+    sprites.shape(ctx, "life", 20, x, y, 0, palette.hudGlow, (c) => {
+      c.rotate(-Math.PI / 2);
+      c.strokeStyle = palette.lifeIcon;
+      setGlow(c, palette.lifeIcon, palette.hudGlow);
+      c.lineWidth = 1.2;
+      c.lineJoin = "round";
+      c.beginPath();
+      c.moveTo(9, 0);
+      c.lineTo(-6, -5);
+      c.lineTo(-3, 0);
+      c.lineTo(-6, 5);
+      c.closePath();
+      c.stroke();
+      clearGlow(c);
+    });
   }
   function drawHUD() {
-    ctx.fillStyle = palette.hud;
-    setGlow(ctx, palette.hud, palette.hudGlow);
-    ctx.font = "15px monospace";
-    ctx.textAlign = "left";
-    ctx.fillText(`SCORE  ${score}`, 14, 26);
-    ctx.textAlign = "center";
-    ctx.fillText(`NIVEL ${level}`, W / 2, 26);
-    clearGlow(ctx);
+    // textBaseline lo deja el texto "3x" del power-up y nunca se restablece: se
+    // replica en el sprite para conservar exactamente la posición original del HUD.
+    const baseline = ctx.textBaseline;
+    const hudKey = `${score}|${level}|${baseline}`;
+    sprites.text(ctx, "hud", hudKey, W, 36, palette.hudGlow, (c) => {
+      c.textBaseline = baseline;
+      c.fillStyle = palette.hud;
+      setGlow(c, palette.hud, palette.hudGlow);
+      c.font = "15px monospace";
+      c.textAlign = "left";
+      c.fillText(`SCORE  ${score}`, 14, 26);
+      c.textAlign = "center";
+      c.fillText(`NIVEL ${level}`, W / 2, 26);
+      clearGlow(c);
+    });
     for (let i = 0; i < lives; i++) drawLifeIcon(W - 16 - i * 22, 18);
     if (ship.tripleShot > 0) {
-      ctx.textAlign = "left";
-      ctx.fillStyle = palette.hudAccent;
-      setGlow(ctx, palette.hudAccent, palette.hudGlow);
-      ctx.fillText(`3x  ${ship.tripleShot.toFixed(1)}s`, 14, 46);
-      clearGlow(ctx);
+      const label = `3x  ${ship.tripleShot.toFixed(1)}s`;
+      sprites.text(
+        ctx,
+        "triple",
+        `${label}|${baseline}`,
+        W / 2,
+        56,
+        palette.hudGlow,
+        (c) => {
+          c.textBaseline = baseline;
+          c.font = "15px monospace";
+          c.textAlign = "left";
+          c.fillStyle = palette.hudAccent;
+          setGlow(c, palette.hudAccent, palette.hudGlow);
+          c.fillText(label, 14, 46);
+          clearGlow(c);
+        },
+      );
     }
   }
   function drawOverlay(title: string, sub: string) {
@@ -286,10 +308,10 @@ export function createAsteroidsGame(
     ctx.fillStyle = palette.bg;
     ctx.fillRect(0, 0, W, H);
     particles.forEach((p) => p.draw(ctx, palette));
-    asteroids.forEach((a) => a.draw(ctx, palette));
-    powerUps.forEach((p) => p.draw(ctx, palette));
-    bullets.forEach((b) => b.draw(ctx, palette));
-    ship.draw(ctx, palette);
+    asteroids.forEach((a) => a.draw(ctx, palette, sprites));
+    powerUps.forEach((p) => p.draw(ctx, palette, sprites));
+    bullets.forEach((b) => b.draw(ctx, palette, sprites));
+    ship.draw(ctx, palette, sprites);
     drawHUD();
     if (status === "gameover") drawOverlay("GAME OVER", `PUNTAJE: ${score}`);
   }

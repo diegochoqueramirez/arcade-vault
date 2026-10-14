@@ -22,33 +22,19 @@ export function drawSprite(
 ) {
   ctx.drawImage(sheet, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
 }
-// Dibuja un sprite tintado con el filtro/glow del skin y restaura el ctx después
-// para que no se filtre al resto del frame. Sin filtro ni glow (classic) no toca el ctx.
-export function drawSkinnedSprite(
-  ctx: CanvasRenderingContext2D,
-  sheet: CanvasImageSource,
+// Dibuja un recorte del spritesheet con el tinte/glow del skin. La implementación
+// (engine.ts) pre-renderiza cada combinación en un canvas offscreen cacheado:
+// ni `ctx.filter` ni `shadowBlur` por frame en el canvas principal.
+export type SkinnedDraw = (
   sp: Sprite,
   x: number,
   y: number,
   w: number,
   h: number,
   filter: string,
-  glowColor = "transparent",
-  glow = 0,
-) {
-  if (filter === "none" && glow === 0) {
-    drawSprite(ctx, sheet, sp, x, y, w, h);
-    return;
-  }
-  ctx.save();
-  ctx.filter = filter;
-  if (glow > 0) {
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur = glow;
-  }
-  drawSprite(ctx, sheet, sp, x, y, w, h);
-  ctx.restore();
-}
+  glowColor?: string,
+  glow?: number,
+) => void;
 interface Rect {
   x: number;
   y: number;
@@ -69,14 +55,8 @@ export class Paddle {
   moveTo(x: number) {
     this.x = Math.max(0, Math.min(W - this.w, x));
   }
-  draw(
-    ctx: CanvasRenderingContext2D,
-    sheet: CanvasImageSource,
-    palette: ArkanoidPalette,
-  ) {
-    drawSkinnedSprite(
-      ctx,
-      sheet,
+  draw(draw: SkinnedDraw, palette: ArkanoidPalette) {
+    draw(
       SPRITES.paddle,
       this.x,
       this.y,
@@ -95,14 +75,8 @@ export class Ball {
   h = BALL_SIZE;
   vx = 0;
   vy = 0;
-  draw(
-    ctx: CanvasRenderingContext2D,
-    sheet: CanvasImageSource,
-    palette: ArkanoidPalette,
-  ) {
-    drawSkinnedSprite(
-      ctx,
-      sheet,
+  draw(draw: SkinnedDraw, palette: ArkanoidPalette) {
+    draw(
       SPRITES.ball,
       this.x,
       this.y,
@@ -123,15 +97,9 @@ export class Block {
     public h: number,
     public color: BlockColor,
   ) {}
-  draw(
-    ctx: CanvasRenderingContext2D,
-    sheet: CanvasImageSource,
-    palette: ArkanoidPalette,
-  ) {
-    // Bloques sin glow: 60 shadowBlur por frame penalizarían el rendimiento.
-    drawSkinnedSprite(
-      ctx,
-      sheet,
+  draw(draw: SkinnedDraw, palette: ArkanoidPalette) {
+    // Bloques sin glow (como en el diseño del skin).
+    draw(
       SPRITES.blocks[this.color],
       this.x,
       this.y,
@@ -156,18 +124,12 @@ export class Explosion {
   update(dt: number) {
     this.elapsed += dt * 1000;
   }
-  draw(
-    ctx: CanvasRenderingContext2D,
-    sheet: CanvasImageSource,
-    palette: ArkanoidPalette,
-  ) {
+  draw(draw: SkinnedDraw, palette: ArkanoidPalette) {
     const frame = Math.min(
       Math.floor((this.elapsed / EXPLOSION_DURATION) * 4),
       3,
     );
-    drawSkinnedSprite(
-      ctx,
-      sheet,
+    draw(
       EXPLOSION_FRAMES[this.color][frame],
       this.x,
       this.y,

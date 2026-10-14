@@ -7,6 +7,10 @@ import {
   type Sprite,
 } from "./constants";
 import type { SnakePalette } from "./skins";
+// Margen del segmento dentro de la celda y tamaño máximo del sprite de fruta.
+export const SEGMENT_INSET = 2;
+export const SEGMENT_SIZE = CELL - SEGMENT_INSET * 2;
+export const FRUIT_SIZE = CELL - 8;
 export function sameCell(a: Cell, b: Cell) {
   return a.col === b.col && a.row === b.row;
 }
@@ -17,20 +21,14 @@ function cellX(c: Cell) {
 function cellY(c: Cell) {
   return HUD_H + c.row * CELL;
 }
-// Dibuja el sprite centrado en la celda, cabiendo en `size` y con su proporción.
-export function drawSprite(
-  ctx: CanvasRenderingContext2D,
-  sheet: CanvasImageSource,
-  sp: Sprite,
-  cell: Cell,
-  size: number,
-) {
+// Caja del sprite centrado en la celda, cabiendo en `size` y con su proporción.
+export function spriteBox(sp: Sprite, cell: Cell, size: number) {
   const scale = Math.min(size / sp.sw, size / sp.sh);
   const w = sp.sw * scale;
   const h = sp.sh * scale;
   const x = cellX(cell) + (CELL - w) / 2;
   const y = cellY(cell) + (CELL - h) / 2;
-  ctx.drawImage(sheet, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
+  return { x, y, w, h };
 }
 export class Snake {
   // Cabeza en [0].
@@ -59,27 +57,23 @@ export class Snake {
     this.cells.unshift(head);
     if (!grow) this.cells.pop();
   }
-  draw(ctx: CanvasRenderingContext2D, dir: Dir, palette: SnakePalette) {
-    const inset = 2;
-    const size = CELL - inset * 2;
-    // Glow solo en los segmentos; se resetea antes de los ojos.
-    ctx.shadowBlur = palette.glow;
+  // Segmentos (con su glow) pre-renderizados por el motor (SPEC 10): `segment(isHead)`
+  // devuelve el sprite y `pad` su margen; aquí solo se copian, 0 shadowBlur por frame.
+  draw(
+    ctx: CanvasRenderingContext2D,
+    dir: Dir,
+    palette: SnakePalette,
+    segment: (isHead: boolean) => CanvasImageSource,
+    pad: number,
+  ) {
     for (let i = this.cells.length - 1; i >= 0; i--) {
       const c = this.cells[i];
-      const color = i === 0 ? palette.head : palette.body;
-      ctx.fillStyle = color;
-      ctx.shadowColor = color;
-      ctx.beginPath();
-      ctx.roundRect(
-        cellX(c) + inset,
-        cellY(c) + inset,
-        size,
-        size,
-        palette.segmentRadius,
+      ctx.drawImage(
+        segment(i === 0),
+        cellX(c) + SEGMENT_INSET - pad,
+        cellY(c) + SEGMENT_INSET - pad,
       );
-      ctx.fill();
     }
-    ctx.shadowBlur = 0;
     this.drawEyes(ctx, dir, palette);
   }
   private drawEyes(
@@ -107,14 +101,10 @@ export class Fruit {
     public cell: Cell,
     public sprite: Sprite,
   ) {}
-  // El filtro de la skin tiñe solo el sprite y se restaura después.
-  draw(
-    ctx: CanvasRenderingContext2D,
-    sheet: CanvasImageSource,
-    palette: SnakePalette,
-  ) {
-    ctx.filter = palette.fruitFilter;
-    drawSprite(ctx, sheet, this.sprite, this.cell, CELL - 8);
-    ctx.filter = "none";
+  // `img`: sprite ya escalado y tintado por el motor con el filtro de la skin (una vez por
+  // fruta y skin), con el desplazamiento subpíxel de la caja incluido: sin ctx.filter por frame.
+  draw(ctx: CanvasRenderingContext2D, img: CanvasImageSource) {
+    const { x, y } = spriteBox(this.sprite, this.cell, FRUIT_SIZE);
+    ctx.drawImage(img, Math.floor(x), Math.floor(y));
   }
 }
