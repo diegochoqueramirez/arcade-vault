@@ -4,9 +4,13 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { saveScore, type SaveScoreResult } from "@/app/actions/scores";
 import GameCanvas, { type GameController } from "@/app/components/GameCanvas";
+import PauseButton from "@/app/components/PauseButton";
+import PauseOverlay from "@/app/components/PauseOverlay";
+import PlayerHud from "@/app/components/PlayerHud";
 import SkinSelector from "@/app/components/SkinSelector";
 import type { Game } from "@/app/data/catalog";
 import { GAME_ENGINES } from "@/app/lib/games/registry";
+import { createSnapshotStore } from "@/app/lib/games/snapshot-store";
 import {
   DEFAULT_SKIN,
   type GameSnapshot,
@@ -24,8 +28,9 @@ const PLAYER_NAME_KEY = "av_player_name";
 const PLAYER_NAME_RE = /^[A-Z0-9_]{1,12}$/;
 export default function GamePlayer({ game }: { game: Game }) {
   const router = useRouter();
-  const [placeholderPaused, setPlaceholderPaused] = useState(false);
-  const [over, setOver] = useState(false);
+  // Puntuación final de la partida: null = sin modal. Un solo estado abre el modal y le pasa
+  // la puntuación en el mismo render (sustituye a over + finalScore).
+  const [finalScore, setFinalScore] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
   const [name, setName] = useState("INVITADO");
   type SaveError = Extract<SaveScoreResult, { ok: false }>["error"];
@@ -39,44 +44,43 @@ export default function GamePlayer({ game }: { game: Game }) {
   const [selectedSkin, setSkin] = useState<SkinId>(DEFAULT_SKIN);
   const hasSkins = !!engine?.skins;
   const skin = hasSkins ? selectedSkin : DEFAULT_SKIN;
-  const [snapshot, setSnapshot] = useState<GameSnapshot>({
-    score: 0,
-    paused: false,
-  });
+  // Snapshot en un store externo (SPEC 10): el motor escribe en él y solo re-renderizan
+  // PlayerHud, PauseButton y PauseOverlay; GamePlayer no guarda snapshot ni pausa en estado.
+  // useState lazy sin setter: instancia estable, nunca provoca renders (react-hooks/refs
+  // impide leer un useRef durante el render).
+  const [store] = useState(() =>
+    createSnapshotStore(engine ? { score: 0, paused: false } : PLACEHOLDER),
+  );
   const gameRef = useRef<GameController>(null);
-  // Con motor, este es la fuente de verdad de la pausa (botón, teclas y pestaña).
-  const { score, lives, level, paused, extra } = engine
-    ? snapshot
-    : { ...PLACEHOLDER, paused: placeholderPaused };
+  // Con motor, el motor es la fuente de verdad de la pausa (botón, teclas y pestaña).
   const togglePause = () => {
     if (engine) gameRef.current?.togglePause();
-    else setPlaceholderPaused((p) => !p);
+    else store.set({ ...store.get(), paused: !store.get().paused });
   };
   // Puntuación del modal: la notifica el motor; fija en el placeholder.
-  const [finalScore, setFinalScore] = useState(PLACEHOLDER.score);
   const handleGameOver = (s: number) => {
-    setFinalScore(s);
     // Pre-rellena el modal con el último nombre guardado (si es válido).
     try {
       const stored = localStorage.getItem(PLAYER_NAME_KEY);
       if (stored && PLAYER_NAME_RE.test(stored)) setName(stored);
     } catch {}
-    setOver(true);
+    setFinalScore(s);
   };
   // Con motor, end() dispara onGameOver, que abre el modal.
   const end = () => {
     if (engine) gameRef.current?.end();
-    else setOver(true);
+    else setFinalScore(PLACEHOLDER.score);
   };
   const restart = () => {
     if (engine) gameRef.current?.restart();
-    setPlaceholderPaused(false);
-    setOver(false);
+    else store.set(PLACEHOLDER);
+    setFinalScore(null);
     setSaved(false);
     setSaveError(null);
   };
   // Solo los juegos con motor persisten en Supabase; el placeholder conserva el guardado visual.
   const save = () => {
+    if (finalScore === null) return;
     if (!engine) {
       setSaved(true);
       return;
@@ -102,44 +106,13 @@ export default function GamePlayer({ game }: { game: Game }) {
   return (
     <div className="av-player fade-in">
       <div className="player-hud">
-        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-          <div className="hud-stat">
-            <div className="l">Jugador</div>
-            <div className="v" style={{ color: "var(--ink)" }}>
-              {name}
-            </div>
-          </div>
-          <div className="hud-stat">
-            <div className="l">Puntuación</div>
-            <div className="v">{score.toLocaleString("es-ES")}</div>
-          </div>
-          {lives !== undefined && (
-            <div className="hud-stat lives">
-              <div className="l">Vidas</div>
-              <div className="v">{"♥ ".repeat(lives).trim()}</div>
-            </div>
-          )}
-          {level !== undefined && (
-            <div className="hud-stat level">
-              <div className="l">Nivel</div>
-              <div className="v">{String(level).padStart(2, "0")}</div>
-            </div>
-          )}
-          {extra?.map((e) => (
-            <div key={e.label} className="hud-stat">
-              <div className="l">{e.label}</div>
-              <div className="v">{e.value}</div>
-            </div>
-          ))}
-        </div>
+        <PlayerHud store={store} name={name} />
         <div className="player-hud-controls">
           {hasSkins && (
             <SkinSelector gameId={game.id} value={skin} onChange={setSkin} />
           )}
           <div className="hud-actions">
-            <button className="btn yellow" onClick={togglePause}>
-              {paused ? "REANUDAR" : "PAUSA"}
-            </button>
+            <PauseButton store={store} onClick={togglePause} />
             <button className="btn magenta" onClick={end}>
               FIN
             </button>
@@ -164,7 +137,7 @@ export default function GamePlayer({ game }: { game: Game }) {
               width={engine.width}
               height={engine.height}
               options={{ skin }}
-              onStateChange={setSnapshot}
+              onStateChange={store.set}
               onGameOver={handleGameOver}
             />
           ) : (
@@ -176,29 +149,7 @@ export default function GamePlayer({ game }: { game: Game }) {
               <div className="player-ship"></div>
             </div>
           )}
-          {paused && (
-            <div
-              className="crt-content"
-              style={{ background: "rgba(0,0,0,0.6)", zIndex: 5 }}
-            >
-              <div>
-                <div className="pixel neon-yellow" style={{ fontSize: 22 }}>
-                  EN PAUSA
-                </div>
-                <div
-                  className="mono"
-                  style={{
-                    fontSize: 11,
-                    color: "var(--ink-dim)",
-                    marginTop: 10,
-                    letterSpacing: "0.16em",
-                  }}
-                >
-                  PULSA REANUDAR PARA CONTINUAR
-                </div>
-              </div>
-            </div>
-          )}
+          <PauseOverlay store={store} />
         </div>
         <div className="crt-bottom">
           <span className="led">SEÑAL OK</span>
@@ -206,7 +157,7 @@ export default function GamePlayer({ game }: { game: Game }) {
           <span>CARGA · 1MB</span>
         </div>
       </div>
-      {over && (
+      {finalScore !== null && (
         <div className="modal-bd">
           <div className="modal">
             <h2>FIN DEL JUEGO</h2>

@@ -97,13 +97,14 @@ export function createFroggerGame(
   if (!maybeCtx) throw new Error("Canvas 2D no disponible");
   const ctx: CanvasRenderingContext2D = maybeCtx;
   const palette = SKINS[options?.skin ?? DEFAULT_SKIN];
-  // Glow (solo skins con glow > 0); siempre se resetea tras dibujar para que no se filtre.
-  function setGlow(color: string, blur: number) {
-    ctx.shadowColor = color;
-    ctx.shadowBlur = blur;
+  // Glow (solo skins con glow > 0) sobre el contexto indicado (pantalla u offscreen);
+  // siempre se resetea tras dibujar para que no se filtre.
+  function setGlow(c: CanvasRenderingContext2D, color: string, blur: number) {
+    c.shadowColor = color;
+    c.shadowBlur = blur;
   }
-  function clearGlow() {
-    ctx.shadowBlur = 0;
+  function clearGlow(c: CanvasRenderingContext2D) {
+    c.shadowBlur = 0;
   }
   // ── Input ───────────────────────────────────────────────────────────────────
   // Un salto por pulsación (sin autorepetición); se guarda la última dirección pendiente.
@@ -301,9 +302,17 @@ export function createFroggerGame(
     }
   }
   // ── Draw ────────────────────────────────────────────────────────────────────
-  function drawBackground() {
+  // Fondo estático (filas por zona + líneas de carretera) pintado una sola vez por motor
+  // en un canvas offscreen con la paleta del skin; cada frame solo lo copia (SPEC 10).
+  const background = renderBackground();
+  function renderBackground(): HTMLCanvasElement {
+    const bg = document.createElement("canvas");
+    bg.width = W;
+    bg.height = H;
+    const bgCtx = bg.getContext("2d");
+    if (!bgCtx) throw new Error("Canvas 2D no disponible");
     for (let row = 0; row < ROWS; row++) {
-      ctx.fillStyle =
+      bgCtx.fillStyle =
         row === ROW_GOALS
           ? palette.goalRow
           : isRiverRow(row)
@@ -311,13 +320,48 @@ export function createFroggerGame(
             : isRoadRow(row)
               ? palette.road
               : palette.safe;
-      ctx.fillRect(0, row * CELL, W, CELL);
+      bgCtx.fillRect(0, row * CELL, W, CELL);
     }
     // Líneas discontinuas entre carriles de carretera.
-    ctx.fillStyle = palette.roadLine;
+    bgCtx.fillStyle = palette.roadLine;
     for (let row = ROW_ROAD_TOP + 1; row <= ROW_ROAD_BOT; row++)
       for (let x = 0; x < W; x += CELL)
-        ctx.fillRect(x + 8, row * CELL - 1, 24, 2);
+        bgCtx.fillRect(x + 8, row * CELL - 1, 24, 2);
+    return bg;
+  }
+  function drawBackground() {
+    ctx.drawImage(background, 0, 0);
+  }
+  // Sprites pre-renderizados (SPEC 10, paso 8): cada forma con glow (coche, camión, rana,
+  // texto del HUD) se pinta una sola vez en un canvas offscreen y cada frame solo se copia
+  // con drawImage. shadowBlur deja de calcularse por frame (era el coste del skin neon).
+  // Margen alrededor de la forma para que el glow no se recorte en el sprite.
+  const PAD = Math.ceil(Math.max(palette.glow, palette.hudGlow) * 1.5) + 2;
+  const sprites = new Map<string, HTMLCanvasElement>();
+  function makeCanvas(w: number, h: number) {
+    const s = document.createElement("canvas");
+    s.width = Math.ceil(w) + PAD * 2;
+    s.height = Math.ceil(h) + PAD * 2;
+    const c = s.getContext("2d");
+    if (!c) throw new Error("Canvas 2D no disponible");
+    c.translate(PAD, PAD);
+    return { s, c };
+  }
+  // Sprite cacheado por clave; paint dibuja con origen en la esquina de la forma.
+  function sprite(
+    key: string,
+    w: number,
+    h: number,
+    paint: (c: CanvasRenderingContext2D) => void,
+  ) {
+    let cached = sprites.get(key);
+    if (!cached) {
+      const { s, c } = makeCanvas(w, h);
+      paint(c);
+      sprites.set(key, s);
+      cached = s;
+    }
+    return cached;
   }
   function drawGoals() {
     // La mitad superior de la fila queda libre para el HUD.
@@ -334,35 +378,45 @@ export function createFroggerGame(
         drawFrogShape(x + w / 2, top + (CELL - top) / 2, "up", false, 0.6);
     });
   }
-  function drawCar(e: Entity, lane: Lane, y: number) {
-    const x = e.col * CELL;
-    const w = e.width * CELL;
-    ctx.fillStyle = palette.wheel;
-    for (const wx of [x + 8, x + w - 8]) {
-      ctx.beginPath();
-      ctx.arc(wx, y + 8, 5, 0, Math.PI * 2);
-      ctx.arc(wx, y + CELL - 8, 5, 0, Math.PI * 2);
-      ctx.fill();
+  function paintCar(c: CanvasRenderingContext2D, w: number, color: string) {
+    c.fillStyle = palette.wheel;
+    for (const wx of [8, w - 8]) {
+      c.beginPath();
+      c.arc(wx, 8, 5, 0, Math.PI * 2);
+      c.arc(wx, CELL - 8, 5, 0, Math.PI * 2);
+      c.fill();
     }
-    const color = palette.cars[lane.row % palette.cars.length];
-    ctx.fillStyle = color;
-    setGlow(color, palette.glow);
-    ctx.fillRect(x + 3, y + 8, w - 6, CELL - 16);
-    clearGlow();
+    c.fillStyle = color;
+    setGlow(c, color, palette.glow);
+    c.fillRect(3, 8, w - 6, CELL - 16);
+    clearGlow(c);
   }
-  function drawTruck(e: Entity, lane: Lane, y: number) {
-    const x = e.col * CELL;
+  function drawCar(e: Entity, lane: Lane, y: number) {
     const w = e.width * CELL;
+    const color = palette.cars[lane.row % palette.cars.length];
+    const s = sprite(`car:${color}:${w}`, w, CELL, (c) =>
+      paintCar(c, w, color),
+    );
+    ctx.drawImage(s, e.col * CELL - PAD, y - PAD);
+  }
+  function paintTruck(c: CanvasRenderingContext2D, w: number, dir: number) {
     const cabW = 22;
     // Cabina en el frente (sentido de la marcha).
-    const cabX = lane.dir === 1 ? x + w - cabW - 2 : x + 2;
-    const bodyX = lane.dir === 1 ? x + 2 : x + cabW + 4;
-    ctx.fillStyle = palette.truck;
-    setGlow(palette.truck, palette.glow);
-    ctx.fillRect(bodyX, y + 6, w - cabW - 6, CELL - 12);
-    ctx.fillStyle = palette.truckCab;
-    ctx.fillRect(cabX, y + 9, cabW, CELL - 18);
-    clearGlow();
+    const cabX = dir === 1 ? w - cabW - 2 : 2;
+    const bodyX = dir === 1 ? 2 : cabW + 4;
+    c.fillStyle = palette.truck;
+    setGlow(c, palette.truck, palette.glow);
+    c.fillRect(bodyX, 6, w - cabW - 6, CELL - 12);
+    c.fillStyle = palette.truckCab;
+    c.fillRect(cabX, 9, cabW, CELL - 18);
+    clearGlow(c);
+  }
+  function drawTruck(e: Entity, lane: Lane, y: number) {
+    const w = e.width * CELL;
+    const s = sprite(`truck:${lane.dir}:${w}`, w, CELL, (c) =>
+      paintTruck(c, w, lane.dir),
+    );
+    ctx.drawImage(s, e.col * CELL - PAD, y - PAD);
   }
   function drawLog(e: Entity, y: number) {
     const x = e.col * CELL;
@@ -412,6 +466,46 @@ export function createFroggerGame(
     }
   }
   // Rana centrada en (cx, cy): cuerpo elipse 28×24, ojos al frente, patas extendidas al saltar.
+  // Sprite de FROG_BOX × FROG_BOX px centrado (patas ≤ 21 px del centro en cualquier giro).
+  const FROG_BOX = 48;
+  const FROG_ANGLE: Record<Direction, number> = {
+    up: 0,
+    right: Math.PI / 2,
+    down: Math.PI,
+    left: -Math.PI / 2,
+  };
+  function paintFrog(
+    c: CanvasRenderingContext2D,
+    facing: Direction,
+    jumping: boolean,
+    scale: number,
+  ) {
+    c.translate(FROG_BOX / 2, FROG_BOX / 2);
+    c.rotate(FROG_ANGLE[facing]);
+    c.scale(scale, scale);
+    const legReach = jumping ? 18 : 12;
+    c.fillStyle = palette.frogDark;
+    for (const sx of [-1, 1]) {
+      c.fillRect(sx * legReach - 3, -12, 6, 8);
+      c.fillRect(sx * legReach - 3, jumping ? 8 : 4, 6, 8);
+    }
+    c.fillStyle = palette.frog;
+    setGlow(c, palette.frog, palette.glow);
+    c.beginPath();
+    c.ellipse(0, 0, 14, 12, 0, 0, Math.PI * 2);
+    c.fill();
+    clearGlow(c);
+    for (const sx of [-6, 6]) {
+      c.fillStyle = palette.eyeWhite;
+      c.beginPath();
+      c.arc(sx, -9, 4, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = palette.eyePupil;
+      c.beginPath();
+      c.arc(sx, -10, 2, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
   function drawFrogShape(
     cx: number,
     cy: number,
@@ -419,39 +513,13 @@ export function createFroggerGame(
     jumping: boolean,
     scale = 1,
   ) {
-    const angle = {
-      up: 0,
-      right: Math.PI / 2,
-      down: Math.PI,
-      left: -Math.PI / 2,
-    }[facing];
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(angle);
-    ctx.scale(scale, scale);
-    const legReach = jumping ? 18 : 12;
-    ctx.fillStyle = palette.frogDark;
-    for (const sx of [-1, 1]) {
-      ctx.fillRect(sx * legReach - 3, -12, 6, 8);
-      ctx.fillRect(sx * legReach - 3, jumping ? 8 : 4, 6, 8);
-    }
-    ctx.fillStyle = palette.frog;
-    setGlow(palette.frog, palette.glow);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 14, 12, 0, 0, Math.PI * 2);
-    ctx.fill();
-    clearGlow();
-    for (const sx of [-6, 6]) {
-      ctx.fillStyle = palette.eyeWhite;
-      ctx.beginPath();
-      ctx.arc(sx, -9, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = palette.eyePupil;
-      ctx.beginPath();
-      ctx.arc(sx, -10, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
+    const s = sprite(
+      `frog:${facing}:${jumping}:${scale}`,
+      FROG_BOX,
+      FROG_BOX,
+      (c) => paintFrog(c, facing, jumping, scale),
+    );
+    ctx.drawImage(s, cx - FROG_BOX / 2 - PAD, cy - FROG_BOX / 2 - PAD);
   }
   function drawFrog() {
     const t = frog.animating ? Math.min(frog.animT / JUMP_MS, 1) : 0;
@@ -464,16 +532,31 @@ export function createFroggerGame(
       frog.animating,
     );
   }
+  // Texto del HUD con glow: se repinta solo cuando cambian score o nivel (no va al Map de
+  // sprites para no acumular un canvas por puntuación).
+  let hudKey = "";
+  let hudSprite: HTMLCanvasElement | null = null;
+  function hudText() {
+    const key = `${score}|${level}`;
+    if (!hudSprite || key !== hudKey) {
+      const { s, c } = makeCanvas(W, 16);
+      c.fillStyle = palette.hudText;
+      setGlow(c, palette.hudText, palette.hudGlow);
+      c.font = "bold 16px monospace";
+      c.textBaseline = "top";
+      c.textAlign = "left";
+      c.fillText(`SCORE ${score}`, 6, 0);
+      c.textAlign = "center";
+      c.fillText(`NIVEL ${level}`, W / 2, 0);
+      clearGlow(c);
+      hudKey = key;
+      hudSprite = s;
+    }
+    return hudSprite;
+  }
   function drawHUD() {
-    ctx.fillStyle = palette.hudText;
-    setGlow(palette.hudText, palette.hudGlow);
-    ctx.font = "bold 16px monospace";
-    ctx.textBaseline = "top";
-    ctx.textAlign = "left";
-    ctx.fillText(`SCORE ${score}`, 6, 0);
-    ctx.textAlign = "center";
-    ctx.fillText(`NIVEL ${level}`, W / 2, 0);
-    clearGlow();
+    // El sprite empieza en (-PAD, -PAD): el texto queda en y = 0 como antes.
+    ctx.drawImage(hudText(), -PAD, -PAD);
     // Vidas: un círculo verde por vida, arriba a la derecha.
     ctx.fillStyle = palette.life;
     for (let i = 0; i < lives; i++) {
@@ -491,16 +574,17 @@ export function createFroggerGame(
           : palette.timeLow;
     ctx.fillRect(0, H - 6, W * ratio, 6);
   }
+  // Overlay GAME OVER: solo con la partida terminada; conserva el glow directo.
   function drawOverlay(message: string) {
     ctx.fillStyle = palette.overlayBg;
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = palette.overlayText;
-    setGlow(palette.overlayText, palette.hudGlow);
+    setGlow(ctx, palette.overlayText, palette.hudGlow);
     ctx.font = "bold 56px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(message, W / 2, H / 2);
-    clearGlow();
+    clearGlow(ctx);
   }
   function draw() {
     drawBackground();
@@ -511,34 +595,20 @@ export function createFroggerGame(
     if (status === "gameover") drawOverlay("GAME OVER");
   }
   // ── Notificación a React ────────────────────────────────────────────────────
-  // Solo se emite si algún campo cambió respecto al último snapshot: nunca por frame.
-  let last: {
-    score: number;
-    lives: number;
-    level: number;
-    seconds: number;
-    paused: boolean;
-  } | null = null;
+  // Solo se emite si cambia score, vidas, nivel o pausa: nunca por frame ni por segundo
+  // (el tiempo restante solo se ve en la barra del canvas).
+  let last: GameSnapshot | null = null;
   function emitStateIfChanged() {
-    const seconds = Math.ceil(timeLeft / 1000);
     if (
       last &&
       last.score === score &&
       last.lives === lives &&
       last.level === level &&
-      last.seconds === seconds &&
       last.paused === paused
     )
       return;
-    last = { score, lives, level, seconds, paused };
-    const snapshot: GameSnapshot = {
-      score,
-      lives,
-      level,
-      paused,
-      extra: [{ label: "TIEMPO", value: `${seconds}s` }],
-    };
-    callbacks.onStateChange(snapshot);
+    last = { score, lives, level, paused };
+    callbacks.onStateChange(last);
   }
   // ── Loop principal ──────────────────────────────────────────────────────────
   let lastTime: number | null = null;
