@@ -19,7 +19,8 @@ import {
   Block,
   Explosion,
   Paddle,
-  drawSkinnedSprite,
+  type SkinnedDraw,
+  drawSprite,
   overlaps,
 } from "./entities";
 import { SKINS } from "./skins";
@@ -229,33 +230,86 @@ export function createArkanoidGame(
     }
   }
   // ── Draw ────────────────────────────────────────────────────────────────────
-  // Glow del texto (solo si el skin lo usa); se resetea tras cada dibujo.
-  function setTextGlow(color: string) {
-    if (palette.hudGlow === 0) return;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = palette.hudGlow;
+  // Sprites offscreen (SPEC 10): tinte (`filter`) y glow se aplican una sola vez
+  // al pintar cada sprite en su canvas; por frame solo hay `drawImage` sin filtro
+  // ni `shadowBlur`. La caché vive en el closure: se libera con el motor.
+  // PAD: margen para que el glow no se recorte (se dibuja en x − PAD, y − PAD).
+  const PAD = Math.ceil(Math.max(palette.glow, palette.hudGlow) * 1.5) + 2;
+  const sprites = new Map<string, HTMLCanvasElement>();
+  function makeCanvas(w: number, h: number) {
+    const s = document.createElement("canvas");
+    s.width = Math.ceil(w) + PAD * 2;
+    s.height = Math.ceil(h) + PAD * 2;
+    const c = s.getContext("2d");
+    if (!c) throw new Error("Canvas 2D no disponible");
+    c.translate(PAD, PAD);
+    return { s, c };
   }
-  function clearGlow() {
-    ctx.shadowBlur = 0;
-    ctx.shadowColor = "transparent";
+  function setGlow(c: CanvasRenderingContext2D, color: string, blur: number) {
+    if (blur === 0) return;
+    c.shadowColor = color;
+    c.shadowBlur = blur;
+  }
+  function clearGlow(c: CanvasRenderingContext2D) {
+    c.shadowBlur = 0;
+    c.shadowColor = "transparent";
+  }
+  const drawSkinned: SkinnedDraw = (
+    sp,
+    x,
+    y,
+    w,
+    h,
+    filter,
+    glowColor = "transparent",
+    glow = 0,
+  ) => {
+    // Sin filtro ni glow (classic): directo del spritesheet, como siempre.
+    if (filter === "none" && glow === 0) {
+      drawSprite(ctx, sheet, sp, x, y, w, h);
+      return;
+    }
+    const key = `${sp.sx},${sp.sy},${sp.sw},${sp.sh}|${w}x${h}|${filter}|${glowColor}|${glow}`;
+    let cached = sprites.get(key);
+    if (!cached) {
+      const { s, c } = makeCanvas(w, h);
+      c.filter = filter;
+      setGlow(c, glowColor, glow);
+      drawSprite(c, sheet, sp, 0, 0, w, h);
+      sprites.set(key, s);
+      cached = s;
+    }
+    ctx.drawImage(cached, x - PAD, y - PAD);
+  };
+  // Texto del HUD (Score / Nivel) cacheado: se repinta solo si cambia su valor.
+  const HUD_FONT_BOX = 30;
+  let hudSprite: HTMLCanvasElement | null = null;
+  let hudKey = "";
+  function hudText() {
+    const key = `${score}|${level}`;
+    if (!hudSprite || key !== hudKey) {
+      const { s, c } = makeCanvas(W, HUD_FONT_BOX);
+      c.fillStyle = palette.hud;
+      setGlow(c, palette.hud, palette.hudGlow);
+      c.font = "bold 18px monospace";
+      c.textAlign = "left";
+      c.textBaseline = "top";
+      c.fillText(`Score: ${score}`, 10, 10);
+      c.textAlign = "center";
+      c.fillText(`Nivel: ${level}`, W / 2, 10);
+      clearGlow(c);
+      hudKey = key;
+      hudSprite = s;
+    }
+    return hudSprite;
   }
   function drawHUD() {
-    ctx.fillStyle = palette.hud;
-    setTextGlow(palette.hud);
-    ctx.font = "bold 18px monospace";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText(`Score: ${score}`, 10, 10);
-    ctx.textAlign = "center";
-    ctx.fillText(`Nivel: ${level}`, W / 2, 10);
-    clearGlow();
+    ctx.drawImage(hudText(), -PAD, -PAD);
     const ballSize = 16;
     const ballSpacing = 4;
     for (let i = 0; i < lives; i++) {
       const bx = W - 10 - (lives - i) * (ballSize + ballSpacing);
-      drawSkinnedSprite(
-        ctx,
-        sheet,
+      drawSkinned(
         SPRITES.ball,
         bx,
         10,
@@ -265,31 +319,41 @@ export function createArkanoidGame(
       );
     }
   }
+  // Overlay de fin de partida: exento (solo se dibuja con la partida terminada).
   function drawOverlay(message: string) {
     ctx.fillStyle = palette.overlayBg;
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = palette.overlayText;
-    setTextGlow(palette.overlayText);
+    setGlow(ctx, palette.overlayText, palette.hudGlow);
     ctx.font = "bold 64px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(message, W / 2, H / 2);
-    clearGlow();
+    clearGlow(ctx);
   }
-  // Scanlines CRT (solo retro): 1 px oscuro cada 4 px.
+  // Scanlines CRT (solo retro): 1 px oscuro cada 4 px, pintadas una vez offscreen.
+  const scanlines = (() => {
+    if (!palette.scanlines) return null;
+    const s = document.createElement("canvas");
+    s.width = W;
+    s.height = H;
+    const c = s.getContext("2d");
+    if (!c) throw new Error("Canvas 2D no disponible");
+    c.fillStyle = palette.scanlines;
+    for (let y = 0; y < H; y += 4) c.fillRect(0, y, W, 1);
+    return s;
+  })();
   function drawScanlines() {
-    if (!palette.scanlines) return;
-    ctx.fillStyle = palette.scanlines;
-    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+    if (scanlines) ctx.drawImage(scanlines, 0, 0);
   }
   function draw() {
     ctx.fillStyle = palette.bg;
     ctx.fillRect(0, 0, W, H);
     if (!sheetReady) return;
-    blocks.forEach((b) => b.alive && b.draw(ctx, sheet, palette));
-    explosions.forEach((e) => e.draw(ctx, sheet, palette));
-    paddle.draw(ctx, sheet, palette);
-    ball.draw(ctx, sheet, palette);
+    blocks.forEach((b) => b.alive && b.draw(drawSkinned, palette));
+    explosions.forEach((e) => e.draw(drawSkinned, palette));
+    paddle.draw(drawSkinned, palette);
+    ball.draw(drawSkinned, palette);
     if (status === "playing") drawHUD();
     if (status === "gameover") drawOverlay("GAME OVER");
     if (status === "win") drawOverlay("¡Completaste el juego!");

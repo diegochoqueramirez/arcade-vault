@@ -1,5 +1,6 @@
 import { H, POWERUP_TTL, RADII, SPEEDS, TRIPLE_SPREAD, W } from "./constants";
 import type { AsteroidsPalette } from "./skins";
+import type { AsteroidsSprites } from "./sprites";
 export type AsteroidSize = 1 | 2 | 3;
 export type KeyState = Record<string, boolean>;
 interface Point {
@@ -47,13 +48,29 @@ export class Bullet {
     this.ttl -= dt;
     if (this.ttl <= 0) this.dead = true;
   }
-  draw(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette) {
-    ctx.fillStyle = palette.bullet;
-    setGlow(ctx, palette.bullet, palette.glow);
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-    clearGlow(ctx);
+  draw(
+    ctx: CanvasRenderingContext2D,
+    palette: AsteroidsPalette,
+    sprites: AsteroidsSprites,
+  ) {
+    const r = this.radius;
+    sprites.shape(
+      ctx,
+      "bullet",
+      r * 2,
+      this.x,
+      this.y,
+      0,
+      palette.glow,
+      (c) => {
+        c.fillStyle = palette.bullet;
+        setGlow(c, palette.bullet, palette.glow);
+        c.beginPath();
+        c.arc(0, 0, r, 0, Math.PI * 2);
+        c.fill();
+        clearGlow(c);
+      },
+    );
   }
 }
 // ── Asteroid ──────────────────────────────────────────────────────────────────
@@ -100,21 +117,36 @@ export class Asteroid {
       new Asteroid(this.x, this.y, next),
     ];
   }
-  draw(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette) {
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.rot);
-    ctx.strokeStyle = palette.asteroid;
-    setGlow(ctx, palette.asteroid, palette.glow);
-    ctx.lineWidth = 1.5;
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    ctx.moveTo(this.verts[0][0], this.verts[0][1]);
-    for (let i = 1; i < this.verts.length; i++)
-      ctx.lineTo(this.verts[i][0], this.verts[i][1]);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.restore();
+  // Polígono único por asteroide: su sprite se cachea con el propio asteroide como clave.
+  draw(
+    ctx: CanvasRenderingContext2D,
+    palette: AsteroidsPalette,
+    sprites: AsteroidsSprites,
+  ) {
+    const verts = this.verts;
+    const size = this.radius * 2 + 2; // + trazo
+    sprites.shape(
+      ctx,
+      this,
+      size,
+      this.x,
+      this.y,
+      this.rot,
+      palette.glow,
+      (c) => {
+        c.strokeStyle = palette.asteroid;
+        setGlow(c, palette.asteroid, palette.glow);
+        c.lineWidth = 1.5;
+        c.lineJoin = "round";
+        c.beginPath();
+        c.moveTo(verts[0][0], verts[0][1]);
+        for (let i = 1; i < verts.length; i++)
+          c.lineTo(verts[i][0], verts[i][1]);
+        c.closePath();
+        c.stroke();
+        clearGlow(c);
+      },
+    );
   }
 }
 // ── PowerUp ───────────────────────────────────────────────────────────────────
@@ -140,18 +172,34 @@ export class PowerUp {
     this.ttl -= dt;
     if (this.ttl <= 0) this.dead = true;
   }
-  draw(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette) {
+  draw(
+    ctx: CanvasRenderingContext2D,
+    palette: AsteroidsPalette,
+    sprites: AsteroidsSprites,
+  ) {
     if (this.ttl < 2 && Math.floor(this.ttl * 8) % 2 === 0) return;
     const pulse = 0.85 + Math.sin(performance.now() / 150) * 0.15;
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(Math.PI / 4);
-    ctx.strokeStyle = palette.powerUp;
-    setGlow(ctx, palette.powerUp, palette.glow);
-    ctx.lineWidth = 2;
-    const r = this.radius * pulse;
-    ctx.strokeRect(-r, -r, r * 2, r * 2);
-    ctx.restore();
+    // Pulso cuantizado a 0,25 px: ~15 sprites por skin, diferencia imperceptible.
+    const r = Math.round(this.radius * pulse * 4) / 4;
+    const size = (r + 1) * Math.SQRT2 * 2; // rombo girado 45° + trazo
+    const rot = Math.PI / 4;
+    sprites.shape(
+      ctx,
+      `pu:${r}`,
+      size,
+      this.x,
+      this.y,
+      rot,
+      palette.glow,
+      (c) => {
+        c.strokeStyle = palette.powerUp;
+        setGlow(c, palette.powerUp, palette.glow);
+        c.lineWidth = 2;
+        c.strokeRect(-r, -r, r * 2, r * 2);
+        clearGlow(c);
+      },
+    );
+    // El texto "3x" nunca tuvo glow (restore lo quitaba antes de fillText).
     ctx.fillStyle = palette.powerUp;
     ctx.font = "bold 12px monospace";
     ctx.textAlign = "center";
@@ -220,38 +268,47 @@ export class Ship {
     }
     return [new Bullet(ox, oy, this.angle)];
   }
-  draw(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette) {
+  draw(
+    ctx: CanvasRenderingContext2D,
+    palette: AsteroidsPalette,
+    sprites: AsteroidsSprites,
+  ) {
     if (this.dead) return;
     // Parpadeo durante invencibilidad de reaparición
     if (this.invincible > 0 && Math.floor(this.invincible * 8) % 2 === 0)
       return;
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.angle);
-    ctx.strokeStyle = palette.ship;
-    setGlow(ctx, palette.ship, palette.glow);
-    ctx.lineWidth = 1.5;
-    ctx.lineJoin = "round";
-    // Silueta clásica: triángulo con muesca trasera
-    ctx.beginPath();
-    ctx.moveTo(20, 0); // nariz
-    ctx.lineTo(-12, -9); // ala izquierda
-    ctx.lineTo(-7, 0); // muesca trasera
-    ctx.lineTo(-12, 9); // ala derecha
-    ctx.closePath();
-    ctx.stroke();
-    // Llama del propulsor
+    const { x, y, angle } = this;
+    // Silueta clásica: triángulo con muesca trasera (nariz en x = 20).
+    sprites.shape(ctx, "ship", 42, x, y, angle, palette.glow, (c) => {
+      c.strokeStyle = palette.ship;
+      setGlow(c, palette.ship, palette.glow);
+      c.lineWidth = 1.5;
+      c.lineJoin = "round";
+      c.beginPath();
+      c.moveTo(20, 0); // nariz
+      c.lineTo(-12, -9); // ala izquierda
+      c.lineTo(-7, 0); // muesca trasera
+      c.lineTo(-12, 9); // ala derecha
+      c.closePath();
+      c.stroke();
+      clearGlow(c);
+    });
+    // Llama del propulsor; largo cuantizado a 0,5 px (17 sprites como máximo).
     if (this.thrusting && Math.random() > 0.35) {
-      ctx.beginPath();
-      ctx.moveTo(-8, -4);
-      ctx.lineTo(-8 - rand(6, 14), 0);
-      ctx.lineTo(-8, 4);
-      ctx.strokeStyle = palette.thrust;
-      ctx.shadowColor = palette.thrust;
-      ctx.stroke();
+      const len = Math.round(rand(6, 14) * 2) / 2;
+      sprites.shape(ctx, `flame:${len}`, 46, x, y, angle, palette.glow, (c) => {
+        c.strokeStyle = palette.thrust;
+        setGlow(c, palette.thrust, palette.glow);
+        c.lineWidth = 1.5;
+        c.lineJoin = "round";
+        c.beginPath();
+        c.moveTo(-8, -4);
+        c.lineTo(-8 - len, 0);
+        c.lineTo(-8, 4);
+        c.stroke();
+        clearGlow(c);
+      });
     }
-    clearGlow(ctx);
-    ctx.restore();
   }
 }
 // ── Particle (explosión) ──────────────────────────────────────────────────────

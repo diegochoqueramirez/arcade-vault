@@ -208,28 +208,96 @@ export function createTetrisGame(
     }
   }
   // ── Draw ────────────────────────────────────────────────────────────────────
-  function drawGrid() {
-    ctx.strokeStyle = THEME.gridLine;
-    ctx.lineWidth = 0.5;
-    for (let c = 1; c < COLS; c++) {
-      ctx.beginPath();
-      ctx.moveTo(c * BLOCK, 0);
-      ctx.lineTo(c * BLOCK, ROWS * BLOCK);
-      ctx.stroke();
+  // Fondo estático (SPEC 10, P4): fondo, tablero vacío con rejilla y borde, etiquetas,
+  // marco de NEXT y CONTROLS se pintan una sola vez en un canvas offscreen y cada frame
+  // se copian con un drawImage. Los bloques nunca se solapan con rejilla ni bordes.
+  const NEXT_Y = 226;
+  const background = renderBackground();
+  function renderBackground(): HTMLCanvasElement {
+    const bg = document.createElement("canvas");
+    bg.width = W;
+    bg.height = H;
+    const c = bg.getContext("2d");
+    if (!c) throw new Error("Canvas 2D no disponible");
+    c.fillStyle = THEME.bg;
+    c.fillRect(0, 0, W, H);
+    paintBoardFrame(c);
+    c.textAlign = "left";
+    c.textBaseline = "top";
+    paintLabel(c, "SCORE", 4);
+    paintLabel(c, "LINES", 72);
+    paintLabel(c, "LEVEL", 140);
+    paintLabel(c, "NEXT", 208);
+    paintNextFrame(c, NEXT_Y);
+    paintLabel(c, "CONTROLS", 368);
+    paintControls(c, 386);
+    return bg;
+  }
+  function paintBoardFrame(c: CanvasRenderingContext2D) {
+    c.save();
+    c.translate(BOARD_X, BOARD_Y);
+    c.fillStyle = THEME.canvasBg;
+    c.fillRect(0, 0, COLS * BLOCK, ROWS * BLOCK);
+    c.strokeStyle = THEME.gridLine;
+    c.lineWidth = 0.5;
+    for (let col = 1; col < COLS; col++) {
+      c.beginPath();
+      c.moveTo(col * BLOCK, 0);
+      c.lineTo(col * BLOCK, ROWS * BLOCK);
+      c.stroke();
     }
     for (let r = 1; r < ROWS; r++) {
-      ctx.beginPath();
-      ctx.moveTo(0, r * BLOCK);
-      ctx.lineTo(COLS * BLOCK, r * BLOCK);
-      ctx.stroke();
+      c.beginPath();
+      c.moveTo(0, r * BLOCK);
+      c.lineTo(COLS * BLOCK, r * BLOCK);
+      c.stroke();
     }
+    c.strokeStyle = THEME.border;
+    c.lineWidth = 1;
+    c.strokeRect(0.5, 0.5, COLS * BLOCK - 1, ROWS * BLOCK - 1);
+    c.restore();
+  }
+  function paintLabel(c: CanvasRenderingContext2D, text: string, y: number) {
+    c.font = `600 10px ${FONT_SANS}`;
+    c.letterSpacing = "2px";
+    c.fillStyle = THEME.label;
+    c.fillText(text, PANEL_X, y);
+    c.letterSpacing = "0px";
+  }
+  function paintNextFrame(c: CanvasRenderingContext2D, y: number) {
+    c.fillStyle = THEME.canvasBg;
+    c.fillRect(PANEL_X, y, NEXT_SIZE, NEXT_SIZE);
+    c.strokeStyle = THEME.border;
+    c.lineWidth = 1;
+    c.strokeRect(PANEL_X + 0.5, y + 0.5, NEXT_SIZE - 1, NEXT_SIZE - 1);
+  }
+  function paintControls(c: CanvasRenderingContext2D, y: number) {
+    c.textBaseline = "middle";
+    CONTROLS.forEach(([keys, action], i) => {
+      const cy = y + i * 24 + 9;
+      let x = PANEL_X;
+      c.font = `11px ${FONT_SANS}`;
+      for (const key of keys) {
+        const w = c.measureText(key).width + 14;
+        c.fillStyle = THEME.kbdBg;
+        c.strokeStyle = THEME.kbdBorder;
+        c.beginPath();
+        c.roundRect(x + 0.5, cy - 8.5, w, 17, 3);
+        c.fill();
+        c.stroke();
+        c.fillStyle = THEME.kbdText;
+        c.fillText(key, x + 7, cy + 1);
+        x += w + 4;
+      }
+      c.font = `12px ${FONT_SANS}`;
+      c.fillStyle = THEME.controlsText;
+      c.fillText(action, x, cy + 1);
+    });
+    c.textBaseline = "top";
   }
   function drawBoard() {
     ctx.save();
     ctx.translate(BOARD_X, BOARD_Y);
-    ctx.fillStyle = THEME.canvasBg;
-    ctx.fillRect(0, 0, COLS * BLOCK, ROWS * BLOCK);
-    drawGrid();
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++) drawBlock(ctx, c, r, board[r][c], BLOCK);
     // En gameover la pieza que no cabe no se dibuja (el original congelaba el frame previo).
@@ -238,17 +306,7 @@ export function createTetrisGame(
       current.forEachCell((x, y, v) => drawBlock(ctx, x, y, v, BLOCK, 0.2), gy);
       current.forEachCell((x, y, v) => drawBlock(ctx, x, y, v, BLOCK));
     }
-    ctx.strokeStyle = THEME.border;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, COLS * BLOCK - 1, ROWS * BLOCK - 1);
     ctx.restore();
-  }
-  function drawLabel(text: string, y: number) {
-    ctx.font = `600 10px ${FONT_SANS}`;
-    ctx.letterSpacing = "2px";
-    ctx.fillStyle = THEME.label;
-    ctx.fillText(text, PANEL_X, y);
-    ctx.letterSpacing = "0px";
   }
   function drawValue(text: string, y: number) {
     ctx.font = `700 26px ${FONT_MONO}`;
@@ -258,11 +316,6 @@ export function createTetrisGame(
     ctx.letterSpacing = "0px";
   }
   function drawNext(y: number) {
-    ctx.fillStyle = THEME.canvasBg;
-    ctx.fillRect(PANEL_X, y, NEXT_SIZE, NEXT_SIZE);
-    ctx.strokeStyle = THEME.border;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(PANEL_X + 0.5, y + 0.5, NEXT_SIZE - 1, NEXT_SIZE - 1);
     const shape = next.shape;
     const offX = Math.floor((4 - shape[0].length) / 2);
     const offY = Math.floor((4 - shape.length) / 2);
@@ -273,44 +326,15 @@ export function createTetrisGame(
         drawBlock(ctx, offX + c, offY + r, shape[r][c], 30);
     ctx.restore();
   }
-  function drawControls(y: number) {
-    ctx.textBaseline = "middle";
-    CONTROLS.forEach(([keys, action], i) => {
-      const cy = y + i * 24 + 9;
-      let x = PANEL_X;
-      ctx.font = `11px ${FONT_SANS}`;
-      for (const key of keys) {
-        const w = ctx.measureText(key).width + 14;
-        ctx.fillStyle = THEME.kbdBg;
-        ctx.strokeStyle = THEME.kbdBorder;
-        ctx.beginPath();
-        ctx.roundRect(x + 0.5, cy - 8.5, w, 17, 3);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = THEME.kbdText;
-        ctx.fillText(key, x + 7, cy + 1);
-        x += w + 4;
-      }
-      ctx.font = `12px ${FONT_SANS}`;
-      ctx.fillStyle = THEME.controlsText;
-      ctx.fillText(action, x, cy + 1);
-    });
-    ctx.textBaseline = "top";
-  }
-  // Panel lateral del original (SCORE, LINES, LEVEL, NEXT, CONTROLS), dibujado en el canvas.
+  // Panel lateral del original (SCORE, LINES, LEVEL, NEXT, CONTROLS): etiquetas, marco de
+  // NEXT y controles van en el fondo; aquí solo se pinta lo que cambia.
   function drawPanel() {
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    drawLabel("SCORE", 4);
     drawValue(score.toLocaleString("es-ES"), 22);
-    drawLabel("LINES", 72);
     drawValue(String(lines), 90);
-    drawLabel("LEVEL", 140);
     drawValue(String(level), 158);
-    drawLabel("NEXT", 208);
-    drawNext(226);
-    drawLabel("CONTROLS", 368);
-    drawControls(386);
+    drawNext(NEXT_Y);
   }
   function drawGameOver() {
     // Velo con desenfoque, como el backdrop-filter del overlay original.
@@ -335,8 +359,7 @@ export function createTetrisGame(
     );
   }
   function draw() {
-    ctx.fillStyle = THEME.bg;
-    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(background, 0, 0);
     drawBoard();
     drawPanel();
     if (status === "gameover") drawGameOver();
