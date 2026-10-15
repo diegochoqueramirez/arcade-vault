@@ -3,11 +3,15 @@ import Image from "next/image";
 import { useState } from "react";
 // Pokédex nacional completa (hasta Gen 9).
 const MAX_POKEMON = 1025;
-const spriteUrl = (id: number) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+function spriteUrl(id: number): string {
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+}
 export default function PokemonCounter() {
   const [count, setCount] = useState(0);
+  const isEmpty = count === 0;
   const atMax = count >= MAX_POKEMON;
+  const increment = () => setCount((c) => Math.min(c + 1, MAX_POKEMON));
+  const reset = () => setCount(0);
   return (
     <section className="poke fade-in">
       <h1 className="poke-title pixel">Contador Pokémon</h1>
@@ -16,7 +20,7 @@ export default function PokemonCounter() {
         nacional.
       </p>
       <div className="poke-screen" aria-live="polite">
-        {count === 0 ? (
+        {isEmpty ? (
           <p className="poke-empty pixel">
             Pulsa +1 para ver tu primer Pokémon
           </p>
@@ -36,18 +40,10 @@ export default function PokemonCounter() {
         Nº {String(count).padStart(4, "0")}
       </output>
       <div className="poke-actions">
-        <button
-          className="btn yellow xl"
-          onClick={() => setCount((c) => Math.min(c + 1, MAX_POKEMON))}
-          disabled={atMax}
-        >
+        <button className="btn yellow xl" onClick={increment} disabled={atMax}>
           +1
         </button>
-        <button
-          className="btn ghost"
-          onClick={() => setCount(0)}
-          disabled={count === 0}
-        >
+        <button className="btn ghost" onClick={reset} disabled={isEmpty}>
           Reiniciar
         </button>
       </div>
