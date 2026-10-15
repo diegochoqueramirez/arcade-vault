@@ -13,3 +13,11 @@ export function getSupabaseEnv(): { url: string; publishableKey: string } {
   }
   return { url: url!, publishableKey: publishableKey! };
 }
+// Clave secreta (sb_secret_…): solo servidor, nunca NEXT_PUBLIC_. Salta los grants de anon.
+export function getSupabaseSecretKey(): string {
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error("Supabase: falta la variable de entorno SUPABASE_SECRET_KEY");
+  }
+  return secretKey;
+}

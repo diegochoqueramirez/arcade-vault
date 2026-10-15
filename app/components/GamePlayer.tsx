@@ -200,7 +200,9 @@ export default function GamePlayer({ game }: { game: Game }) {
                     <p key={errorTick} id="save-error" className="save-error">
                       {saveError === "invalid"
                         ? "NOMBRE INVÁLIDO: 1–12 CARACTERES A-Z 0-9 _"
-                        : "NO SE PUDO GUARDAR. REINTENTA."}
+                        : saveError === "rate_limited"
+                          ? "DEMASIADOS ENVÍOS, ESPERA UN MINUTO"
+                          : "NO SE PUDO GUARDAR. REINTENTA."}
                     </p>
                   )}
                 </div>
